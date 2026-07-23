@@ -42,3 +42,5 @@ next-env.d.ts
 
 # inkwell local data (rmapi token, sqlite, vault) — never commit
 /data/
+engine-fixtures/
+engine/target/
