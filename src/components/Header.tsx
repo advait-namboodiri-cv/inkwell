@@ -7,6 +7,7 @@ import Logo from "./Logo";
 const TABS = [
   { href: "/", label: "dashboard" },
   { href: "/janitor", label: "janitor" },
+  { href: "/superpowers", label: "superpowers" },
   { href: "/settings", label: "settings" },
 ];
 
