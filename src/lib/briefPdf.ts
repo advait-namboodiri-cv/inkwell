@@ -12,7 +12,7 @@ export function briefPdf(brief: Brief): Promise<Buffer> {
     const doc = new PDFDocument({
       size: PAGE,
       margins: { top: M, bottom: M, left: M, right: M },
-      info: { Title: `daily brief — ${brief.dateLabel}` },
+      info: { Title: `daily brief · ${brief.dateLabel}` },
     });
     const chunks: Buffer[] = [];
     doc.on("data", (c: Buffer) => chunks.push(c));
@@ -30,6 +30,10 @@ export function briefPdf(brief: Brief): Promise<Buffer> {
       if (brief.weather.detail) {
         doc.font("Helvetica").fontSize(8.5).fillColor("#777").text(brief.weather.detail);
       }
+    }
+    if (brief.inkStats) {
+      doc.moveDown(0.1);
+      doc.font("Helvetica").fontSize(8.5).fillColor("#555").text(brief.inkStats.label);
     }
     rule(doc);
 
@@ -64,6 +68,13 @@ export function briefPdf(brief: Brief): Promise<Buffer> {
       rule(doc);
     }
 
+    // on this day
+    if (brief.history) {
+      section(doc, "on this day");
+      doc.font("Times-Roman").fontSize(10.5).fillColor("#111").text(brief.history.label, { lineGap: 2 });
+      rule(doc);
+    }
+
     // quote foot
     doc.moveDown(0.4);
     doc
@@ -71,7 +82,7 @@ export function briefPdf(brief: Brief): Promise<Buffer> {
       .fontSize(10)
       .fillColor("#444")
       .text(`“${brief.quote.text}”`, { lineGap: 2 });
-    doc.font("Helvetica").fontSize(8).fillColor("#888").text(`— ${brief.quote.by}`);
+    doc.font("Helvetica").fontSize(8).fillColor("#888").text(`${brief.quote.by}`);
     doc.moveDown(0.8);
     doc.font("Helvetica").fontSize(7.5).fillColor("#999").text("sent with inkwell");
 

@@ -18,6 +18,8 @@ export type Brief = {
   todos: string[];
   news: NewsItem[];
   weather: BriefWeather | null;
+  inkStats: { label: string } | null;
+  history: { label: string } | null;
   quote: { text: string; by: string };
 };
 
@@ -28,7 +30,7 @@ const QUOTES: { text: string; by: string }[] = [
   { text: "What we fear doing most is usually what we most need to do.", by: "Tim Ferriss" },
   { text: "Well begun is half done.", by: "Aristotle" },
   { text: "You do not rise to the level of your goals. You fall to the level of your systems.", by: "James Clear" },
-  { text: "Whether you think you can, or you think you can't — you're right.", by: "Henry Ford" },
+  { text: "Whether you think you can, or you think you can't, you're right.", by: "Henry Ford" },
   { text: "Make it work, make it right, make it fast.", by: "Kent Beck" },
   { text: "The impediment to action advances action. What stands in the way becomes the way.", by: "Marcus Aurelius" },
   { text: "Little by little, one travels far.", by: "attributed to Tolkien" },
@@ -92,7 +94,7 @@ async function todaysWeather(city: string): Promise<BriefWeather | null> {
     const cond = describeCode(d.weather_code?.[0] ?? -1);
     const sun =
       d.sunrise?.[0] && d.sunset?.[0]
-        ? `sun ${clockLabel(d.sunrise[0])} – ${clockLabel(d.sunset[0])}`
+        ? `sun ${clockLabel(d.sunrise[0])} to ${clockLabel(d.sunset[0])}`
         : "";
     return {
       label: [hit.name, cond, `high ${hi}° low ${lo}°`].filter(Boolean).join(" · "),
@@ -100,6 +102,65 @@ async function todaysWeather(city: string): Promise<BriefWeather | null> {
         .filter(Boolean)
         .join(" · "),
     };
+  } catch {
+    return null;
+  }
+}
+
+// "12 pages inked yesterday · 6 day streak", from the heatmap's page events
+function inkStatsLine(): { label: string } | null {
+  const db = getDb();
+  const dayStart = (offsetDays: number) => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - offsetDays);
+    return d.getTime();
+  };
+  const pagesOn = (offsetDays: number) =>
+    (
+      db
+        .prepare("SELECT COUNT(*) AS n FROM page_events WHERE modifed >= ? AND modifed < ?")
+        .get(dayStart(offsetDays), dayStart(offsetDays - 1)) as { n: number }
+    ).n;
+
+  const yesterday = pagesOn(1);
+  // streak of consecutive days with ink, ending yesterday (or today)
+  let streak = 0;
+  let offset = pagesOn(0) > 0 ? 0 : 1;
+  while (pagesOn(offset) > 0 && streak < 365) {
+    streak += 1;
+    offset += 1;
+  }
+  if (yesterday === 0 && streak === 0) return null;
+  const parts = [
+    yesterday > 0 ? `${yesterday} page${yesterday === 1 ? "" : "s"} inked yesterday` : "no ink yesterday",
+    streak > 1 ? `${streak} day streak` : "",
+  ].filter(Boolean);
+  return { label: parts.join(" · ") };
+}
+
+// one line from wikipedia's "on this day" feed, no key needed
+async function onThisDay(): Promise<{ label: string } | null> {
+  try {
+    const now = new Date();
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const dd = String(now.getDate()).padStart(2, "0");
+    const res = await fetch(
+      `https://en.wikipedia.org/api/rest_v1/feed/onthisday/selected/${mm}/${dd}`,
+      {
+        headers: { "User-Agent": "inkwell-brief (personal app)" },
+        signal: AbortSignal.timeout(10_000),
+      }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const events = Array.isArray(data?.selected) ? data.selected : [];
+    if (events.length === 0) return null;
+    const pick = events[Math.floor(Date.now() / 86_400_000) % events.length];
+    const text = String(pick?.text ?? "").trim();
+    if (!text) return null;
+    const line = `${pick.year} · ${text}`;
+    return { label: line.length > 200 ? `${line.slice(0, 197)}...` : line };
   } catch {
     return null;
   }
@@ -127,6 +188,8 @@ export async function buildBrief(): Promise<Brief> {
   }
 
   const weather = brief.sections.weather ? await todaysWeather(brief.city) : null;
+  const inkStats = brief.sections.inkStats ? inkStatsLine() : null;
+  const history = brief.sections.history ? await onThisDay() : null;
 
   const dayNumber = Math.floor(Date.now() / 86_400_000);
   const quote = QUOTES[dayNumber % QUOTES.length];
@@ -137,7 +200,7 @@ export async function buildBrief(): Promise<Brief> {
     day: "numeric",
   });
 
-  return { dateLabel, todos, news, weather, quote };
+  return { dateLabel, todos, news, weather, inkStats, history, quote };
 }
 
 export async function sendBrief(): Promise<{ name: string; folder: string; emailed: boolean }> {
