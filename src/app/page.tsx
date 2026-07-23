@@ -67,7 +67,7 @@ export default function Home() {
                 my.remarkable.com
               </a>
             </li>
-            <li>enter it below — codes expire after a few minutes</li>
+            <li>enter it below, codes expire after a few minutes</li>
           </ol>
           <input
             value={code}

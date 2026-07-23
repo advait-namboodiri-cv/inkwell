@@ -21,7 +21,7 @@ export default function HighlightsCard({ data }: { data: HighlightsData }) {
       {data.daily && (
         <blockquote className="border-l-2 border-accent pl-4 py-1">
           <p className="text-[17px] leading-relaxed">“{data.daily.text}”</p>
-          <cite className="text-xs text-graphite not-italic">— {data.daily.doc}</cite>
+          <cite className="text-xs text-graphite not-italic">{data.daily.doc}</cite>
           <div className="text-[10px] text-faint mt-1">today&apos;s resurfaced passage</div>
         </blockquote>
       )}

@@ -96,7 +96,7 @@ export async function runSync(): Promise<SyncProgress> {
   progress.error = null;
   try {
     const res = await runRmapi(["refresh"], undefined, 120_000);
-    if (res.code !== 0) throw new Error("refresh failed — is the connection ok?");
+    if (res.code !== 0) throw new Error("refresh failed, is the connection ok?");
     const { generation, docs } = parseCache();
     const paths = computePaths(docs);
     const db = getDb();

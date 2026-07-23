@@ -133,7 +133,7 @@ export default function JanitorPage() {
           <>
             <div className="bg-card border border-line rounded-2xl px-6 py-4 shadow-soft flex items-center justify-between gap-4">
               <p className="text-sm text-graphite">
-                everything removed here is first archived to a local vault — nothing
+                everything removed here is first archived to a local vault, nothing
                 is ever unrecoverable
               </p>
               {count > 0 &&
@@ -171,7 +171,7 @@ export default function JanitorPage() {
 
             <div className="bg-card border border-line rounded-2xl px-6 py-5 shadow-soft">
               <div className="flex items-baseline justify-between mb-2 gap-3">
-                <h2 className="text-sm text-graphite">stale — untouched 6+ months</h2>
+                <h2 className="text-sm text-graphite">stale · untouched 6+ months</h2>
                 <div className="flex items-center gap-2 text-xs">
                   <span className="text-faint">{report.staleTotal} total · top 100 by</span>
                   {(["oldest", "largest"] as const).map((s) => (
@@ -207,7 +207,7 @@ export default function JanitorPage() {
                 <span className="text-xs text-faint">{report.dupes.length} groups</span>
               </div>
               {report.dupes.length === 0 ? (
-                <p className="text-sm text-faint">none — tidy library</p>
+                <p className="text-sm text-faint">none, tidy library</p>
               ) : (
                 <div className="flex flex-col gap-4">
                   {report.dupes.map((g) => (
@@ -231,11 +231,11 @@ export default function JanitorPage() {
 
             <div className="bg-card border border-line rounded-2xl px-6 py-5 shadow-soft">
               <div className="flex items-baseline justify-between mb-2">
-                <h2 className="text-sm text-graphite">orphans — folder no longer exists</h2>
+                <h2 className="text-sm text-graphite">orphans · folder no longer exists</h2>
                 <span className="text-xs text-faint">{report.orphans.length}</span>
               </div>
               {report.orphans.length === 0 ? (
-                <p className="text-sm text-faint">none — every doc has a home</p>
+                <p className="text-sm text-faint">none, every doc has a home</p>
               ) : (
                 <ul>
                   {report.orphans.map((d) => (

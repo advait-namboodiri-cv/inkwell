@@ -53,7 +53,7 @@ export default function TodosPage() {
           className="bg-card border border-line rounded-2xl px-6 py-5 shadow-soft flex flex-col gap-3"
         >
           <h2 className="text-sm text-graphite">
-            todos — open ones print on your daily brief
+            todos · open ones print on your daily brief
           </h2>
           <div className="flex gap-2">
             <input
@@ -73,7 +73,7 @@ export default function TodosPage() {
           {todos === null ? (
             <p className="text-faint text-sm">loading…</p>
           ) : todos.length === 0 ? (
-            <p className="text-faint text-sm">nothing yet — a clean slate</p>
+            <p className="text-faint text-sm">nothing yet, a clean slate</p>
           ) : (
             <ul className="flex flex-col">
               {todos.map((t) => (

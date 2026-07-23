@@ -17,7 +17,7 @@ export default function ShelfCard({ shelf }: { shelf: ShelfItem[] }) {
       <h2 className="text-sm text-graphite">reading shelf</h2>
       {shelf.length === 0 ? (
         <p className="text-sm text-faint">
-          nothing in flight — open a book on your tablet and it&apos;ll appear here
+          nothing in flight, open a book on your tablet and it&apos;ll appear here
         </p>
       ) : (
         <ul className="flex flex-col gap-4">

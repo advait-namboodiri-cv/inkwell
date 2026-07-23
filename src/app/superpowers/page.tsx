@@ -62,7 +62,7 @@ export default function SuperpowersPage() {
           <div>
             <h2 className="text-sm text-graphite">send an article to your tablet</h2>
             <p className="text-xs text-faint mt-1 leading-relaxed">
-              paste a link — inkwell strips it to clean reader text, typesets a
+              paste a link and inkwell strips it to clean reader text, typesets a
               calm PDF, and drops it in the <span className="text-graphite">inkwell inbox</span>{" "}
               folder on your reMarkable
             </p>
@@ -86,7 +86,7 @@ export default function SuperpowersPage() {
           {error && <p className="text-danger text-sm">{error}</p>}
           {sent && (
             <p className="text-sm text-accent-deep bg-accent-mist rounded-xl px-4 py-3">
-              “{sent.title}” ({sent.site}, ~{sent.words} words) is on its way —
+              “{sent.title}” ({sent.site}, ~{sent.words} words) is on its way,
               check the {sent.folder} folder after your tablet syncs ✦
             </p>
           )}
@@ -98,7 +98,7 @@ export default function SuperpowersPage() {
               <h2 className="text-sm text-graphite">daily brief</h2>
               <p className="text-xs text-faint mt-1 leading-relaxed">
                 todos, top stories from your feeds, weather, a resurfaced
-                passage — auto-delivered every morning to a{" "}
+                passage, auto-delivered every morning to a{" "}
                 <span className="text-graphite">Daily briefing</span> folder.
                 tune it in settings.
               </p>

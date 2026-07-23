@@ -23,7 +23,7 @@ export async function POST(req: Request) {
   return NextResponse.json(
     {
       error:
-        "that code didn't work — codes are single use and expire in minutes, grab a fresh one and try again",
+        "that code didn't work. codes are single use and expire in minutes, grab a fresh one and try again",
     },
     { status: 400 }
   );
