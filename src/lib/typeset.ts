@@ -66,7 +66,7 @@ export function articlePdf(article: Article): Promise<Buffer> {
 
     // sign-off
     doc.moveDown(1.5);
-    doc.font("Helvetica").fontSize(8.5).fillColor("#888").text("sent with inkwell ✦");
+    doc.font("Helvetica").fontSize(8.5).fillColor("#888").text("sent with inkwell");
 
     doc.end();
   });

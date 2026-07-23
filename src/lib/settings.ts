@@ -9,30 +9,41 @@ export type BriefSections = {
   todos: boolean;
   news: boolean;
   weather: boolean;
-  passage: boolean;
   quote: boolean;
+};
+
+// preset feeds are toggle chips in the UI; BBC contributes its top 3
+// stories, other enabled presets and custom feeds contribute their top 1
+export type BriefPresets = { bbc: boolean; motorsport: boolean; nyt: boolean };
+
+export const PRESET_FEEDS: Record<keyof BriefPresets, { label: string; url: string }> = {
+  bbc: { label: "BBC news", url: "http://feeds.bbci.co.uk/news/rss.xml" },
+  motorsport: { label: "Motorsport F1", url: "https://www.motorsport.com/rss/f1/news/" },
+  nyt: {
+    label: "NY Times",
+    url: "https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml",
+  },
 };
 
 export type BriefConfig = {
   sections: BriefSections;
-  feeds: string[];
+  presets: BriefPresets;
+  customFeeds: string[];
   city: string;
-  hour: number; // local hour to auto-send (default 7)
+  time: string; // "HH:MM" local time to auto-send
 };
 
 export type Settings = { removalMode: RemovalMode; brief: BriefConfig };
 
 const DEFAULT_BRIEF: BriefConfig = {
-  sections: { todos: true, news: true, weather: true, passage: true, quote: true },
-  feeds: [
-    "http://feeds.bbci.co.uk/news/rss.xml",
-    "https://hnrss.org/frontpage",
-    "https://www.theverge.com/rss/index.xml",
-    "https://www.motorsport.com/rss/f1/news/",
-  ],
+  sections: { todos: true, news: true, weather: true, quote: true },
+  presets: { bbc: true, motorsport: true, nyt: false },
+  customFeeds: [],
   city: "Madison",
-  hour: 7,
+  time: "07:00",
 };
+
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 export function getSettings(): Settings {
   const mode = getSyncState("removal_mode");
@@ -40,12 +51,21 @@ export function getSettings(): Settings {
   const raw = getSyncState("brief_config");
   if (raw) {
     try {
-      const parsed = JSON.parse(raw);
+      const p = JSON.parse(raw);
       brief = {
-        sections: { ...DEFAULT_BRIEF.sections, ...(parsed.sections ?? {}) },
-        feeds: Array.isArray(parsed.feeds) ? parsed.feeds.filter((f: unknown) => typeof f === "string") : DEFAULT_BRIEF.feeds,
-        city: typeof parsed.city === "string" && parsed.city.trim() ? parsed.city : DEFAULT_BRIEF.city,
-        hour: Number.isInteger(parsed.hour) && parsed.hour >= 0 && parsed.hour <= 23 ? parsed.hour : DEFAULT_BRIEF.hour,
+        sections: { ...DEFAULT_BRIEF.sections, ...(p.sections ?? {}) },
+        presets: { ...DEFAULT_BRIEF.presets, ...(p.presets ?? {}) },
+        customFeeds: Array.isArray(p.customFeeds)
+          ? p.customFeeds.filter((f: unknown) => typeof f === "string")
+          : DEFAULT_BRIEF.customFeeds,
+        city:
+          typeof p.city === "string" && p.city.trim() ? p.city : DEFAULT_BRIEF.city,
+        time:
+          typeof p.time === "string" && TIME_RE.test(p.time)
+            ? p.time
+            : Number.isInteger(p.hour) // migrate old hour-based config
+              ? `${String(p.hour).padStart(2, "0")}:00`
+              : DEFAULT_BRIEF.time,
       };
     } catch {
       /* fall back to defaults */
@@ -62,11 +82,18 @@ export function updateSettings(patch: Partial<Settings>): Settings {
     const current = getSettings().brief;
     const next: BriefConfig = {
       sections: { ...current.sections, ...(patch.brief.sections ?? {}) },
-      feeds: Array.isArray(patch.brief.feeds)
-        ? patch.brief.feeds.map((f) => f.trim()).filter(Boolean).slice(0, 10)
-        : current.feeds,
-      city: typeof patch.brief.city === "string" && patch.brief.city.trim() ? patch.brief.city.trim() : current.city,
-      hour: Number.isInteger(patch.brief.hour) && patch.brief.hour! >= 0 && patch.brief.hour! <= 23 ? patch.brief.hour! : current.hour,
+      presets: { ...current.presets, ...(patch.brief.presets ?? {}) },
+      customFeeds: Array.isArray(patch.brief.customFeeds)
+        ? patch.brief.customFeeds.map((f) => f.trim()).filter(Boolean).slice(0, 10)
+        : current.customFeeds,
+      city:
+        typeof patch.brief.city === "string" && patch.brief.city.trim()
+          ? patch.brief.city.trim()
+          : current.city,
+      time:
+        typeof patch.brief.time === "string" && TIME_RE.test(patch.brief.time)
+          ? patch.brief.time
+          : current.time,
     };
     setSyncState("brief_config", JSON.stringify(next));
   }

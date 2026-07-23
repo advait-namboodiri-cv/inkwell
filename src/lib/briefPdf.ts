@@ -26,7 +26,10 @@ export function briefPdf(brief: Brief): Promise<Buffer> {
     doc.font("Times-Bold").fontSize(20).fillColor("#111").text(brief.dateLabel.toLowerCase());
     if (brief.weather) {
       doc.moveDown(0.15);
-      doc.font("Helvetica").fontSize(9).fillColor("#555").text(brief.weather.label);
+      doc.font("Helvetica").fontSize(9.5).fillColor("#444").text(brief.weather.label);
+      if (brief.weather.detail) {
+        doc.font("Helvetica").fontSize(8.5).fillColor("#777").text(brief.weather.detail);
+      }
     }
     rule(doc);
 
@@ -61,18 +64,6 @@ export function briefPdf(brief: Brief): Promise<Buffer> {
       rule(doc);
     }
 
-    // passage
-    if (brief.passage) {
-      section(doc, "from your margins");
-      doc
-        .font("Times-Italic")
-        .fontSize(11)
-        .fillColor("#111")
-        .text(`“${brief.passage.text}”`, { lineGap: 2.5 });
-      doc.font("Helvetica").fontSize(8).fillColor("#777").text(`— ${brief.passage.doc}`);
-      rule(doc);
-    }
-
     // quote foot
     doc.moveDown(0.4);
     doc
@@ -82,7 +73,7 @@ export function briefPdf(brief: Brief): Promise<Buffer> {
       .text(`“${brief.quote.text}”`, { lineGap: 2 });
     doc.font("Helvetica").fontSize(8).fillColor("#888").text(`— ${brief.quote.by}`);
     doc.moveDown(0.8);
-    doc.font("Helvetica").fontSize(7.5).fillColor("#999").text("sent with inkwell ✦");
+    doc.font("Helvetica").fontSize(7.5).fillColor("#999").text("sent with inkwell");
 
     doc.end();
   });

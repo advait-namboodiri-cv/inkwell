@@ -1,5 +1,7 @@
 // Runs once when the server boots: a gentle scheduler that sends the
-// daily brief at the configured hour (default 7am) while inkwell is running.
+// daily brief at the configured time (default 07:00) while inkwell is running.
+// Uses ">= scheduled time today" so a sleeping laptop still gets its brief
+// on wake instead of silently skipping the day.
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
   const { getSettings } = await import("./lib/settings");
@@ -10,8 +12,10 @@ export async function register() {
     try {
       if (!isPaired() || briefSentToday()) return;
       const { brief } = getSettings();
+      const [h, m] = brief.time.split(":").map(Number);
       const now = new Date();
-      if (now.getHours() === brief.hour) {
+      const dueAt = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m);
+      if (now >= dueAt) {
         await sendBrief();
         console.log(`[inkwell] daily brief sent at ${now.toLocaleTimeString()}`);
       }

@@ -20,7 +20,7 @@ function stripHtml(s: string): string {
     .trim();
 }
 
-async function fetchFeed(url: string): Promise<NewsItem[]> {
+export async function fetchFeed(url: string): Promise<NewsItem[]> {
   const res = await fetch(url, {
     headers: { "User-Agent": "Mozilla/5.0 (inkwell brief)" },
     signal: AbortSignal.timeout(15_000),
@@ -59,27 +59,26 @@ async function fetchFeed(url: string): Promise<NewsItem[]> {
   });
 }
 
-// Top N across all feeds: freshest first, at most one story per feed
-// until every feed has contributed (keeps one loud feed from dominating).
-export async function topNews(feeds: string[], count = 3): Promise<NewsItem[]> {
-  const results = await Promise.allSettled(feeds.map(fetchFeed));
-  const perFeed = results
-    .filter((r): r is PromiseFulfilledResult<NewsItem[]> => r.status === "fulfilled")
-    .map((r) => r.value.filter((i) => i.title))
-    .filter((list) => list.length > 0)
-    .map((list) => [...list].sort((a, b) => b.publishedAt - a.publishedAt));
-
+// The brief's news: BBC contributes its top 3 stories (feed order = the
+// editors' ranking), every other feed contributes its single top story.
+// Capped at 6 items total.
+export async function assembleNews(
+  bbcUrl: string | null,
+  otherUrls: string[]
+): Promise<NewsItem[]> {
+  const [bbcResult, ...otherResults] = await Promise.allSettled([
+    bbcUrl ? fetchFeed(bbcUrl) : Promise.resolve([]),
+    ...otherUrls.map(fetchFeed),
+  ]);
   const picked: NewsItem[] = [];
-  let round = 0;
-  while (picked.length < count && perFeed.some((f) => f.length > round)) {
-    const candidates = perFeed
-      .filter((f) => f.length > round)
-      .map((f) => f[round])
-      .sort((a, b) => b.publishedAt - a.publishedAt);
-    for (const c of candidates) {
-      if (picked.length < count) picked.push(c);
-    }
-    round += 1;
+  if (bbcResult.status === "fulfilled") {
+    picked.push(...bbcResult.value.filter((i) => i.title).slice(0, 3));
   }
-  return picked.slice(0, count);
+  for (const r of otherResults) {
+    if (r.status === "fulfilled") {
+      const top = r.value.find((i) => i.title);
+      if (top) picked.push(top);
+    }
+  }
+  return picked.slice(0, 6);
 }
