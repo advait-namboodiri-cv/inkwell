@@ -1,10 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import Dashboard from "@/components/Dashboard";
 
 type Account = { user: string; syncVersion: string };
-type TreeEntry = { type: "d" | "f"; path: string };
-type Tree = { docs: number; folders: number; topLevel: TreeEntry[] };
 
 export default function Home() {
   const [loaded, setLoaded] = useState(false);
@@ -12,24 +11,15 @@ export default function Home() {
   const [code, setCode] = useState("");
   const [pairing, setPairing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [tree, setTree] = useState<Tree | null>(null);
-
-  const loadTree = useCallback(async () => {
-    const res = await fetch("/api/tree");
-    if (res.ok) setTree(await res.json());
-  }, []);
 
   useEffect(() => {
     fetch("/api/status")
       .then((r) => r.json())
       .then((s) => {
-        if (s.paired) {
-          setAccount(s.account);
-          loadTree();
-        }
+        if (s.paired) setAccount(s.account);
       })
       .finally(() => setLoaded(true));
-  }, [loadTree]);
+  }, []);
 
   async function pair(e: React.FormEvent) {
     e.preventDefault();
@@ -45,7 +35,6 @@ export default function Home() {
     if (res.ok) {
       setAccount(data.account);
       setCode("");
-      loadTree();
     } else {
       setError(data.error ?? "something went wrong");
     }
@@ -62,45 +51,7 @@ export default function Home() {
       {!loaded ? (
         <p className="text-faint">opening the well…</p>
       ) : account ? (
-        <section className="w-full max-w-lg flex flex-col gap-6">
-          <div className="bg-card border border-line rounded-2xl px-6 py-5 shadow-soft">
-            <div className="flex items-center gap-2 text-sm text-accent-deep">
-              <span aria-hidden className="w-2 h-2 rounded-full bg-accent inline-block" />
-              connected
-            </div>
-            <p className="mt-1 text-graphite text-sm">{account.user}</p>
-          </div>
-
-          {tree ? (
-            <>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-card border border-line rounded-2xl px-6 py-5 shadow-soft text-center">
-                  <div className="text-3xl font-semibold">{tree.docs}</div>
-                  <div className="text-sm text-graphite mt-1">documents</div>
-                </div>
-                <div className="bg-card border border-line rounded-2xl px-6 py-5 shadow-soft text-center">
-                  <div className="text-3xl font-semibold">{tree.folders}</div>
-                  <div className="text-sm text-graphite mt-1">folders</div>
-                </div>
-              </div>
-              <div className="bg-card border border-line rounded-2xl px-6 py-5 shadow-soft">
-                <h2 className="text-sm text-graphite mb-3">your library</h2>
-                <ul className="flex flex-col gap-1.5">
-                  {tree.topLevel.map((e) => (
-                    <li key={e.path} className="flex items-center gap-2.5 text-[15px]">
-                      <span aria-hidden className="text-faint w-4 text-center">
-                        {e.type === "d" ? "▸" : "·"}
-                      </span>
-                      <span className="truncate">{e.path.slice(1)}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </>
-          ) : (
-            <p className="text-faint text-center">reading your library…</p>
-          )}
-        </section>
+        <Dashboard user={account.user} />
       ) : (
         <form
           onSubmit={pair}
