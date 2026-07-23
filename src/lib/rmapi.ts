@@ -23,11 +23,13 @@ export function unpair(): void {
 export function runRmapi(
   args: string[],
   stdin?: string,
-  timeoutMs = 30_000
+  timeoutMs = 30_000,
+  cwd?: string
 ): Promise<RmapiResult> {
   fs.mkdirSync(DATA_DIR, { recursive: true });
   return new Promise((resolve, reject) => {
     const child = spawn(RMAPI_BIN, args, {
+      cwd,
       env: { ...process.env, RMAPI_CONFIG: CONF_PATH },
     });
     let stdout = "";

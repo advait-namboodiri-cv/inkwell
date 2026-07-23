@@ -38,6 +38,22 @@ export function getDb(): Database.Database {
       key   TEXT PRIMARY KEY,
       value TEXT NOT NULL
     );
+    -- one row per (page, save-timestamp) ever observed; history accumulates
+    -- across syncs even though the device only keeps a page's latest 'modifed'
+    CREATE TABLE IF NOT EXISTS page_events (
+      doc_id  TEXT NOT NULL,
+      page_id TEXT NOT NULL,
+      modifed INTEGER NOT NULL,
+      PRIMARY KEY (doc_id, page_id, modifed)
+    );
+    CREATE INDEX IF NOT EXISTS idx_page_events_modifed ON page_events(modifed);
+    -- which bundle version we last downloaded per doc (hash = cloud content hash)
+    CREATE TABLE IF NOT EXISTS bundles (
+      doc_id     TEXT PRIMARY KEY,
+      hash       TEXT NOT NULL,
+      fetched_at INTEGER NOT NULL,
+      error      TEXT NOT NULL DEFAULT ''
+    );
   `);
   return db;
 }
