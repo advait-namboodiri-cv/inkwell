@@ -123,13 +123,17 @@ export async function runSync(): Promise<SyncProgress> {
         const tags = Array.isArray(c.tags)
           ? c.tags.map((t) => (typeof t === "string" ? t : (t?.name ?? ""))).filter(Boolean)
           : [];
+        const docPath = paths.get(d.DocumentID) ?? `/${m.visibleName ?? d.DocumentID}`;
+        // trashed = directly in trash OR nested anywhere under a trashed folder
+        const trashed =
+          m.deleted || m.parent === "trash" || docPath.startsWith("/trash/");
         upsert.run({
           id: d.DocumentID,
           name: m.visibleName ?? d.DocumentID,
           type: m.type ?? "DocumentType",
           parent: m.parent ?? "",
-          path: paths.get(d.DocumentID) ?? `/${m.visibleName ?? d.DocumentID}`,
-          deleted: m.deleted || m.parent === "trash" ? 1 : 0,
+          path: docPath,
+          deleted: trashed ? 1 : 0,
           pinned: m.pinned ? 1 : 0,
           file_type: c.fileType ?? "",
           page_count: c.pageCount ?? 0,
