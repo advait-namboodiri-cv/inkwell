@@ -3,9 +3,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import CensusCard, { type Census } from "./CensusCard";
 import ShelfCard, { type ShelfItem } from "./ShelfCard";
+import HeatmapCard, { type HeatData } from "./HeatmapCard";
 import { timeAgo } from "@/lib/format";
 
 const STALE_MS = 5 * 60 * 1000; // auto-sync if older than this; also the poll cadence
+
+type Backfill = {
+  running: boolean;
+  done: number;
+  total: number;
+  currentDoc: string | null;
+  failed: number;
+};
 
 export default function Dashboard({ user }: { user: string }) {
   const [syncing, setSyncing] = useState(false);
@@ -13,13 +22,50 @@ export default function Dashboard({ user }: { user: string }) {
   const [error, setError] = useState<string | null>(null);
   const [census, setCensus] = useState<Census | null>(null);
   const [shelf, setShelf] = useState<ShelfItem[] | null>(null);
+  const [heat, setHeat] = useState<HeatData | null>(null);
+  const [backfill, setBackfill] = useState<Backfill | null>(null);
   const syncingRef = useRef(false);
+  const backfillWatchRef = useRef(false);
 
   const loadCards = useCallback(async () => {
-    const [c, s] = await Promise.all([fetch("/api/census"), fetch("/api/shelf")]);
+    const tz = new Date().getTimezoneOffset();
+    const [c, s, h] = await Promise.all([
+      fetch("/api/census"),
+      fetch("/api/shelf"),
+      fetch(`/api/heatmap?tz=${tz}`),
+    ]);
     if (c.ok) setCensus(await c.json());
     if (s.ok) setShelf((await s.json()).shelf);
+    if (h.ok) setHeat(await h.json());
   }, []);
+
+  // kick the bundle backfill and watch it until it finishes,
+  // refreshing the heatmap as new pages land
+  const watchBackfill = useCallback(async () => {
+    if (backfillWatchRef.current) return;
+    backfillWatchRef.current = true;
+    try {
+      const res = await fetch("/api/backfill", { method: "POST" });
+      if (!res.ok) return;
+      let state: Backfill = await res.json();
+      setBackfill(state);
+      let tick = 0;
+      while (state.running) {
+        await new Promise((r) => setTimeout(r, 4000));
+        state = await (await fetch("/api/backfill")).json();
+        setBackfill(state);
+        tick += 1;
+        if (tick % 4 === 0) {
+          const tz = new Date().getTimezoneOffset();
+          const h = await fetch(`/api/heatmap?tz=${tz}`);
+          if (h.ok) setHeat(await h.json());
+        }
+      }
+      await loadCards();
+    } finally {
+      backfillWatchRef.current = false;
+    }
+  }, [loadCards]);
 
   const sync = useCallback(async () => {
     if (syncingRef.current) return;
@@ -34,12 +80,13 @@ export default function Dashboard({ user }: { user: string }) {
       } else {
         setSyncedAt(data.lastSyncedAt);
         await loadCards();
+        void watchBackfill();
       }
     } finally {
       syncingRef.current = false;
       setSyncing(false);
     }
-  }, [loadCards]);
+  }, [loadCards, watchBackfill]);
 
   useEffect(() => {
     let cancelled = false;
@@ -48,7 +95,10 @@ export default function Dashboard({ user }: { user: string }) {
       const state = await res.json();
       if (cancelled) return;
       setSyncedAt(state.lastSyncedAt ?? 0);
-      if (state.lastSyncedAt) await loadCards();
+      if (state.lastSyncedAt) {
+        await loadCards();
+        void watchBackfill();
+      }
       if (!state.lastSyncedAt || Date.now() - state.lastSyncedAt > STALE_MS) {
         await sync();
       }
@@ -60,7 +110,7 @@ export default function Dashboard({ user }: { user: string }) {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [sync, loadCards]);
+  }, [sync, loadCards, watchBackfill]);
 
   return (
     <section className="w-full max-w-2xl flex flex-col gap-6">
@@ -95,10 +145,21 @@ export default function Dashboard({ user }: { user: string }) {
           {syncing ? "taking the first census of your library…" : "loading…"}
         </p>
       ) : (
-        <div className="grid sm:grid-cols-2 gap-6 items-start">
-          {census && <CensusCard census={census} />}
-          {shelf && <ShelfCard shelf={shelf} />}
-        </div>
+        <>
+          {heat && (heat.totals.events > 0 || backfill?.running) && (
+            <HeatmapCard data={heat} />
+          )}
+          {backfill?.running && (
+            <p className="text-xs text-faint text-center -mt-2">
+              reading your pages… {backfill.done} of {backfill.total} documents
+              {backfill.failed > 0 ? ` · ${backfill.failed} skipped` : ""}
+            </p>
+          )}
+          <div className="grid sm:grid-cols-2 gap-6 items-start">
+            {census && <CensusCard census={census} />}
+            {shelf && <ShelfCard shelf={shelf} />}
+          </div>
+        </>
       )}
     </section>
   );
