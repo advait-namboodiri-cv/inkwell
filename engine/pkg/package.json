@@ -1,0 +1,12 @@
+{
+  "name": "ink-engine",
+  "description": "inkwell's parser for the reMarkable .rm v6 (lines) format",
+  "version": "0.1.0",
+  "files": [
+    "ink_engine_bg.wasm",
+    "ink_engine.js",
+    "ink_engine.d.ts"
+  ],
+  "main": "ink_engine.js",
+  "types": "ink_engine.d.ts"
+}
