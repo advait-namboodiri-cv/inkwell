@@ -54,7 +54,22 @@ export function getDb(): Database.Database {
       fetched_at INTEGER NOT NULL,
       error      TEXT NOT NULL DEFAULT ''
     );
+    -- text highlights parsed from .rm pages by the rust engine
+    CREATE TABLE IF NOT EXISTS highlights (
+      doc_id  TEXT NOT NULL,
+      page_id TEXT NOT NULL,
+      ord     INTEGER NOT NULL,
+      text    TEXT NOT NULL,
+      color   INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (doc_id, page_id, ord)
+    );
   `);
+  // migration: track which bundle version highlights were scanned from
+  try {
+    db.exec("ALTER TABLE bundles ADD COLUMN hl_hash TEXT NOT NULL DEFAULT ''");
+  } catch {
+    /* column already exists */
+  }
   return db;
 }
 
