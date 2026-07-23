@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Dashboard from "@/components/Dashboard";
-import Logo from "@/components/Logo";
+import Header from "@/components/Header";
 
 type Account = { user: string; syncVersion: string };
 
@@ -43,11 +43,7 @@ export default function Home() {
 
   return (
     <main className="page-fade flex-1 flex flex-col items-center px-6 py-16">
-      <header className="flex items-center gap-2.5 mb-2 text-ink">
-        <Logo size={30} />
-        <h1 className="text-3xl font-semibold tracking-tight">inkwell</h1>
-      </header>
-      <p className="text-graphite mb-12">the quiet companion for your reMarkable</p>
+      <Header />
 
       {!loaded ? (
         <p className="text-faint">opening the well…</p>
