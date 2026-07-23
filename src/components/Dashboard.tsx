@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import CensusCard, { type Census } from "./CensusCard";
 import ShelfCard, { type ShelfItem } from "./ShelfCard";
 import HeatmapCard, { type HeatData } from "./HeatmapCard";
+import HighlightsCard, { type HighlightsData } from "./HighlightsCard";
 import { timeAgo } from "@/lib/format";
 
 const STALE_MS = 5 * 60 * 1000; // auto-sync if older than this; also the poll cadence
@@ -23,20 +24,23 @@ export default function Dashboard({ user }: { user: string }) {
   const [census, setCensus] = useState<Census | null>(null);
   const [shelf, setShelf] = useState<ShelfItem[] | null>(null);
   const [heat, setHeat] = useState<HeatData | null>(null);
+  const [hl, setHl] = useState<HighlightsData | null>(null);
   const [backfill, setBackfill] = useState<Backfill | null>(null);
   const syncingRef = useRef(false);
   const backfillWatchRef = useRef(false);
 
   const loadCards = useCallback(async () => {
     const tz = new Date().getTimezoneOffset();
-    const [c, s, h] = await Promise.all([
+    const [c, s, h, g] = await Promise.all([
       fetch("/api/census"),
       fetch("/api/shelf"),
       fetch(`/api/heatmap?tz=${tz}`),
+      fetch("/api/highlights"),
     ]);
     if (c.ok) setCensus(await c.json());
     if (s.ok) setShelf((await s.json()).shelf);
     if (h.ok) setHeat(await h.json());
+    if (g.ok) setHl(await g.json());
   }, []);
 
   // kick the bundle backfill and watch it until it finishes,
@@ -59,8 +63,10 @@ export default function Dashboard({ user }: { user: string }) {
           const tz = new Date().getTimezoneOffset();
           const h = await fetch(`/api/heatmap?tz=${tz}`);
           if (h.ok) setHeat(await h.json());
+          void fetch("/api/highlights", { method: "POST" }); // scan what's landed
         }
       }
+      await fetch("/api/highlights", { method: "POST" });
       await loadCards();
     } finally {
       backfillWatchRef.current = false;
@@ -158,6 +164,7 @@ export default function Dashboard({ user }: { user: string }) {
           <div className="grid sm:grid-cols-2 gap-6 items-start">
             {census && <CensusCard census={census} />}
             {shelf && <ShelfCard shelf={shelf} />}
+            {hl && <HighlightsCard data={hl} />}
           </div>
         </>
       )}
