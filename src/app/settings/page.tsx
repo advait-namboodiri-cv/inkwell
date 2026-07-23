@@ -4,21 +4,27 @@ import { useEffect, useState } from "react";
 import Header from "@/components/Header";
 
 type RemovalMode = "trash" | "delete";
-type Sections = {
-  todos: boolean;
-  news: boolean;
-  weather: boolean;
-  passage: boolean;
-  quote: boolean;
+type Sections = { todos: boolean; news: boolean; weather: boolean; quote: boolean };
+type Presets = { bbc: boolean; motorsport: boolean; nyt: boolean };
+type BriefConfig = {
+  sections: Sections;
+  presets: Presets;
+  customFeeds: string[];
+  city: string;
+  time: string;
 };
-type BriefConfig = { sections: Sections; feeds: string[]; city: string; hour: number };
 
 const SECTION_LABELS: { key: keyof Sections; label: string }[] = [
   { key: "todos", label: "open todos" },
-  { key: "news", label: "top 3 news stories" },
+  { key: "news", label: "news" },
   { key: "weather", label: "weather" },
-  { key: "passage", label: "a resurfaced passage" },
   { key: "quote", label: "a quote" },
+];
+
+const PRESET_LABELS: { key: keyof Presets; label: string; hint: string }[] = [
+  { key: "bbc", label: "BBC news", hint: "top 3 stories" },
+  { key: "motorsport", label: "Motorsport F1", hint: "top story" },
+  { key: "nyt", label: "NY Times", hint: "top story" },
 ];
 
 const OPTIONS: { value: RemovalMode; label: string; detail: string }[] = [
@@ -50,7 +56,7 @@ export default function SettingsPage() {
         const s = await res.json();
         setMode(s.removalMode);
         setBrief(s.brief);
-        setFeedsText(s.brief.feeds.join("\n"));
+        setFeedsText(s.brief.customFeeds.join("\n"));
       }
     })();
   }, []);
@@ -84,6 +90,25 @@ export default function SettingsPage() {
       setBrief(s.brief);
       setBriefSaved(true);
       setTimeout(() => setBriefSaved(false), 2000);
+    }
+  }
+
+  const [briefSending, setBriefSending] = useState(false);
+  const [briefResult, setBriefResult] = useState<string | null>(null);
+
+  async function sendNow() {
+    setBriefSending(true);
+    setBriefResult(null);
+    try {
+      const res = await fetch("/api/brief", { method: "POST" });
+      const data = await res.json();
+      setBriefResult(
+        res.ok
+          ? `“${data.name}” delivered to the ${data.folder} folder${data.emailed ? " · email sent" : ""}`
+          : (data.error ?? "something went wrong")
+      );
+    } finally {
+      setBriefSending(false);
     }
   }
 
@@ -133,10 +158,24 @@ export default function SettingsPage() {
         </div>
 
         <div className="bg-card border border-line rounded-2xl px-6 py-5 shadow-soft flex flex-col gap-4">
-          <div className="flex items-baseline justify-between">
+          <div className="flex items-center justify-between gap-3">
             <h2 className="text-sm text-graphite">daily brief</h2>
-            {briefSaved && <span className="text-xs text-accent-deep">saved ✓</span>}
+            <div className="flex items-center gap-3">
+              {briefSaved && <span className="text-xs text-accent-deep">saved ✓</span>}
+              <button
+                onClick={sendNow}
+                disabled={briefSending}
+                className="bg-ink text-paper text-sm rounded-full px-4 py-1.5 disabled:opacity-40"
+              >
+                {briefSending ? "assembling…" : "send now"}
+              </button>
+            </div>
           </div>
+          {briefResult && (
+            <p className="text-sm text-accent-deep bg-accent-mist rounded-xl px-4 py-3">
+              {briefResult}
+            </p>
+          )}
           {brief === null ? (
             <p className="text-faint text-sm">loading…</p>
           ) : (
@@ -159,20 +198,46 @@ export default function SettingsPage() {
                   </label>
                 ))}
               </div>
+              <div className="flex flex-col gap-2">
+                <span className="text-xs text-faint">news sources</span>
+                <div className="flex flex-wrap gap-2">
+                  {PRESET_LABELS.map((p) => (
+                    <button
+                      key={p.key}
+                      onClick={() =>
+                        saveBrief({
+                          presets: { ...brief.presets, [p.key]: !brief.presets[p.key] },
+                        })
+                      }
+                      className={`text-sm rounded-full px-4 py-1.5 border transition-colors ${
+                        brief.presets[p.key]
+                          ? "bg-accent-mist border-accent text-accent-deep"
+                          : "border-line text-graphite hover:border-faint"
+                      }`}
+                    >
+                      {p.label}
+                      <span className="text-[10px] ml-1.5 opacity-70">{p.hint}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
               <label className="flex flex-col gap-1.5">
-                <span className="text-xs text-faint">rss feeds — one per line</span>
+                <span className="text-xs text-faint">
+                  custom rss feeds — one per line, each contributes its top story
+                </span>
                 <textarea
                   value={feedsText}
                   onChange={(e) => setFeedsText(e.target.value)}
-                  onBlur={() => saveBrief({ feeds: feedsText.split("\n") })}
-                  rows={4}
+                  onBlur={() => saveBrief({ customFeeds: feedsText.split("\n") })}
+                  rows={3}
                   spellCheck={false}
-                  className="bg-paper border border-line rounded-xl px-3 py-2 text-xs font-mono outline-none focus:border-accent transition-colors resize-y"
+                  placeholder="https://example.com/feed.xml"
+                  className="bg-paper border border-line rounded-xl px-3 py-2 text-xs font-mono outline-none focus:border-accent transition-colors resize-y placeholder:text-faint"
                 />
               </label>
               <div className="flex gap-4">
                 <label className="flex flex-col gap-1.5 flex-1">
-                  <span className="text-xs text-faint">weather city</span>
+                  <span className="text-xs text-faint">weather city — any city worldwide</span>
                   <input
                     value={brief.city}
                     onChange={(e) => setBrief({ ...brief, city: e.target.value })}
@@ -180,24 +245,22 @@ export default function SettingsPage() {
                     className="bg-paper border border-line rounded-xl px-3 py-2 text-sm outline-none focus:border-accent transition-colors"
                   />
                 </label>
-                <label className="flex flex-col gap-1.5 w-32">
-                  <span className="text-xs text-faint">send at (hour)</span>
+                <label className="flex flex-col gap-1.5 w-36">
+                  <span className="text-xs text-faint">send at</span>
                   <input
-                    type="number"
-                    min={0}
-                    max={23}
-                    value={brief.hour}
-                    onChange={(e) =>
-                      setBrief({ ...brief, hour: Number(e.target.value) })
-                    }
-                    onBlur={() => saveBrief({ hour: brief.hour })}
+                    type="time"
+                    value={brief.time}
+                    onChange={(e) => setBrief({ ...brief, time: e.target.value })}
+                    onBlur={() => saveBrief({ time: brief.time })}
                     className="bg-paper border border-line rounded-xl px-3 py-2 text-sm outline-none focus:border-accent transition-colors"
                   />
                 </label>
               </div>
               <p className="text-xs text-faint leading-relaxed">
-                the brief sends automatically at that hour while inkwell is
-                running, into a &ldquo;Daily briefing&rdquo; folder on your tablet.
+                sends automatically at that time (while inkwell is running) into a
+                &ldquo;Daily briefing&rdquo; folder — and emails you that it&apos;s
+                ready once SMTP_USER and SMTP_PASS (a gmail app password) are in
+                .env.local.
               </p>
             </>
           )}
