@@ -54,6 +54,13 @@ export function getDb(): Database.Database {
       fetched_at INTEGER NOT NULL,
       error      TEXT NOT NULL DEFAULT ''
     );
+    -- the todos page (also printed on the daily brief)
+    CREATE TABLE IF NOT EXISTS todos (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      text       TEXT NOT NULL,
+      done       INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL
+    );
     -- text highlights parsed from .rm pages by the rust engine
     CREATE TABLE IF NOT EXISTS highlights (
       doc_id  TEXT NOT NULL,
