@@ -134,9 +134,10 @@ export function updateSettings(patch: Partial<Settings>): Settings {
     if (typeof e.enabled === "boolean") setSyncState("email_enabled", e.enabled ? "1" : "0");
     if (typeof e.to === "string") setSyncState("email_to", e.to.trim());
     if (typeof e.smtpUser === "string") setSyncState("smtp_user", e.smtpUser.trim());
-    // only overwrite the stored password when a non-empty one is submitted
+    // only overwrite the stored password when a non-empty one is submitted;
+    // google displays app passwords with spaces, so strip all whitespace
     if (typeof e.smtpPass === "string" && e.smtpPass.trim()) {
-      setSyncState("smtp_pass", e.smtpPass.trim());
+      setSyncState("smtp_pass", e.smtpPass.replace(/\s+/g, ""));
     }
   }
   return getSettings();
