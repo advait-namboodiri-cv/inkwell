@@ -1,15 +1,16 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { isPaired } from "@/lib/rmapi";
 import { janitorReport, removeDocs } from "@/lib/janitor";
 import { lastSyncedAt } from "@/lib/sync";
 
 export const runtime = "nodejs";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   if (!lastSyncedAt()) {
     return NextResponse.json({ error: "not synced yet" }, { status: 409 });
   }
-  return NextResponse.json(janitorReport());
+  const sort = req.nextUrl.searchParams.get("sort") === "largest" ? "largest" : "oldest";
+  return NextResponse.json(janitorReport(sort));
 }
 
 export async function POST(req: Request) {

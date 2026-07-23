@@ -56,11 +56,12 @@ export default function JanitorPage() {
   const [confirming, setConfirming] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [sort, setSort] = useState<"oldest" | "largest">("oldest");
 
   const load = useCallback(async () => {
-    const res = await fetch("/api/janitor");
+    const res = await fetch(`/api/janitor?sort=${sort}`);
     if (res.ok) setReport(await res.json());
-  }, []);
+  }, [sort]);
 
   useEffect(() => {
     void (async () => {
@@ -169,11 +170,24 @@ export default function JanitorPage() {
             )}
 
             <div className="bg-card border border-line rounded-2xl px-6 py-5 shadow-soft">
-              <div className="flex items-baseline justify-between mb-2">
+              <div className="flex items-baseline justify-between mb-2 gap-3">
                 <h2 className="text-sm text-graphite">stale — untouched 6+ months</h2>
-                <span className="text-xs text-faint">
-                  {report.staleTotal} total · oldest 100 shown
-                </span>
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-faint">{report.staleTotal} total · top 100 by</span>
+                  {(["oldest", "largest"] as const).map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => setSort(s)}
+                      className={`rounded-full px-2.5 py-1 transition-colors ${
+                        sort === s
+                          ? "bg-accent-mist text-accent-deep"
+                          : "text-graphite hover:text-ink"
+                      }`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
               </div>
               <ul>
                 {report.stale.map((d) => (

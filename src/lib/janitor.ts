@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { getDb } from "./db";
 import { runRmapi } from "./rmapi";
+import { getSettings } from "./settings";
 
 // The janitor never hard-loses data: before any cloud delete, the doc's full
 // bundle is copied into data/vault/<id>__<name>.rmdoc. Disk is cheap; regret isn't.
@@ -20,14 +21,17 @@ export type JanitorDoc = {
   page_count: number;
 };
 
-export function janitorReport() {
+export type StaleSort = "oldest" | "largest";
+
+export function janitorReport(sort: StaleSort = "oldest") {
   const db = getDb();
+  const order = sort === "largest" ? "size_bytes DESC" : "last_modified ASC";
   const stale = db
     .prepare(
       `SELECT id, name, path, last_modified, size_bytes, page_count FROM documents
        WHERE type = 'DocumentType' AND deleted = 0
          AND last_modified > 0 AND last_modified < ?
-       ORDER BY last_modified ASC LIMIT 100`
+       ORDER BY ${order} LIMIT 100`
     )
     .all(Date.now() - SIX_MONTHS_MS) as JanitorDoc[];
 
@@ -105,15 +109,23 @@ export async function removeDocs(ids: string[]): Promise<RemoveResult[]> {
       continue;
     }
     try {
-      // 1) archive to the vault
+      // 1) always archive to the vault first
       const bundle = await ensureBundle(doc.id, doc.path);
       fs.mkdirSync(VAULT_DIR, { recursive: true });
       fs.copyFileSync(bundle, path.join(VAULT_DIR, `${doc.id}__${sanitize(doc.name)}.rmdoc`));
-      // 2) delete from the cloud
-      const res = await runRmapi(["rm", doc.path], undefined, 60_000);
-      if (res.code !== 0) throw new Error(`cloud delete failed: ${res.stderr.slice(0, 150)}`);
+      // 2) then either move to the tablet's trash (default) or delete outright
+      const mode = getSettings().removalMode;
+      const res =
+        mode === "delete"
+          ? await runRmapi(["rm", doc.path], undefined, 60_000)
+          : await runRmapi(["mv", doc.path, "/trash"], undefined, 60_000);
+      if (res.code !== 0) {
+        throw new Error(
+          `${mode === "delete" ? "cloud delete" : "move to trash"} failed: ${res.stderr.slice(0, 150)}`
+        );
+      }
       // 3) reflect locally right away
-      db.prepare("UPDATE documents SET deleted = 1 WHERE id = ?").run(doc.id);
+      db.prepare("UPDATE documents SET deleted = 1, parent = 'trash' WHERE id = ?").run(doc.id);
       results.push({ id, ok: true });
     } catch (err) {
       results.push({
