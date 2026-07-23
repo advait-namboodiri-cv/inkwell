@@ -1,26 +1,59 @@
 @import "tailwindcss";
 
+/* inkwell — paper & ink.
+   Warm paper white, near-black warm ink, one restrained ink-blue accent.
+   Always use the variables; never hardcoded hex in components. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --paper: #faf7f0;
+  --card: #fffdf7;
+  --ink: #211d16;
+  --graphite: #6f6a5e;
+  --faint: #b5afa1;
+  --line: #e8e3d5;
+  --accent: #3a5a6a;
+  --accent-deep: #2c4655;
+  --accent-soft: #e8eef1;
+  --accent-mist: #f1f4f5;
+  --danger: #a8552e;
+  --danger-soft: #f4e7dd;
+  --shadow-soft: 0 1px 2px rgba(33, 29, 22, 0.04), 0 8px 24px rgba(33, 29, 22, 0.05);
+  --shadow-lift: 0 2px 4px rgba(33, 29, 22, 0.06), 0 12px 32px rgba(33, 29, 22, 0.08);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-paper: var(--paper);
+  --color-card: var(--card);
+  --color-ink: var(--ink);
+  --color-graphite: var(--graphite);
+  --color-faint: var(--faint);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-deep: var(--accent-deep);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-mist: var(--accent-mist);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --shadow-soft: var(--shadow-soft);
+  --shadow-lift: var(--shadow-lift);
+  --font-sans: var(--font-lexend);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+/* calm page entrance, mirrors flowstate's soft fade */
+.page-fade {
+  animation: page-fade 0.5s ease both;
+}
+@keyframes page-fade {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
