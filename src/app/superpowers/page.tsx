@@ -10,6 +10,24 @@ export default function SuperpowersPage() {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState<Sent | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [briefSending, setBriefSending] = useState(false);
+  const [briefResult, setBriefResult] = useState<string | null>(null);
+
+  async function sendBriefNow() {
+    setBriefSending(true);
+    setBriefResult(null);
+    try {
+      const res = await fetch("/api/brief", { method: "POST" });
+      const data = await res.json();
+      setBriefResult(
+        res.ok
+          ? `“${data.name}” delivered to the ${data.folder} folder ✦`
+          : (data.error ?? "something went wrong")
+      );
+    } finally {
+      setBriefSending(false);
+    }
+  }
 
   async function send(e: React.FormEvent) {
     e.preventDefault();
@@ -74,10 +92,35 @@ export default function SuperpowersPage() {
           )}
         </form>
 
+        <div className="bg-card border border-line rounded-2xl px-6 py-5 shadow-soft flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-sm text-graphite">daily brief</h2>
+              <p className="text-xs text-faint mt-1 leading-relaxed">
+                todos, top stories from your feeds, weather, a resurfaced
+                passage — auto-delivered every morning to a{" "}
+                <span className="text-graphite">Daily briefing</span> folder.
+                tune it in settings.
+              </p>
+            </div>
+            <button
+              onClick={sendBriefNow}
+              disabled={briefSending}
+              className="bg-ink text-paper text-sm rounded-full px-5 py-2.5 disabled:opacity-40 shrink-0"
+            >
+              {briefSending ? "assembling…" : "send now"}
+            </button>
+          </div>
+          {briefResult && (
+            <p className="text-sm text-accent-deep bg-accent-mist rounded-xl px-4 py-3">
+              {briefResult}
+            </p>
+          )}
+        </div>
+
         <div className="bg-card border border-line rounded-2xl px-6 py-5 shadow-soft">
           <h2 className="text-sm text-graphite mb-2">coming to superpowers</h2>
           <ul className="text-sm text-faint flex flex-col gap-1.5">
-            <li>· the 7am daily brief, pushed to a Daily briefing folder</li>
             <li>· prompt → AI sketch → tablet</li>
             <li>· worksheet generation</li>
             <li>· on-demand document summaries</li>
