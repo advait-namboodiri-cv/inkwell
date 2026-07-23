@@ -4,7 +4,15 @@ import { useEffect, useState } from "react";
 import Header from "@/components/Header";
 
 type RemovalMode = "trash" | "delete";
-type Sections = { todos: boolean; news: boolean; weather: boolean; quote: boolean };
+type Sections = {
+  todos: boolean;
+  news: boolean;
+  weather: boolean;
+  inkStats: boolean;
+  history: boolean;
+  quote: boolean;
+};
+type EmailConfig = { enabled: boolean; to: string; smtpUser: string; hasPassword: boolean };
 type Presets = { bbc: boolean; motorsport: boolean; nyt: boolean };
 type BriefConfig = {
   sections: Sections;
@@ -18,6 +26,8 @@ const SECTION_LABELS: { key: keyof Sections; label: string }[] = [
   { key: "todos", label: "open todos" },
   { key: "news", label: "news" },
   { key: "weather", label: "weather" },
+  { key: "inkStats", label: "your ink stats" },
+  { key: "history", label: "on this day in history" },
   { key: "quote", label: "a quote" },
 ];
 
@@ -32,7 +42,7 @@ const OPTIONS: { value: RemovalMode; label: string; detail: string }[] = [
     value: "trash",
     label: "send to the tablet's trash",
     detail:
-      "archived to the local vault, then moved to your reMarkable's trash — you can still restore it on the device",
+      "archived to the local vault, then moved to your reMarkable's trash. you can still restore it on the device",
   },
   {
     value: "delete",
@@ -49,6 +59,10 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [briefSaved, setBriefSaved] = useState(false);
 
+  const [email, setEmail] = useState<EmailConfig | null>(null);
+  const [smtpPass, setSmtpPass] = useState("");
+  const [emailSaved, setEmailSaved] = useState(false);
+
   useEffect(() => {
     void (async () => {
       const res = await fetch("/api/settings");
@@ -57,9 +71,29 @@ export default function SettingsPage() {
         setMode(s.removalMode);
         setBrief(s.brief);
         setFeedsText(s.brief.customFeeds.join("\n"));
+        setEmail(s.email);
       }
     })();
   }, []);
+
+  async function saveEmail(patch: Partial<EmailConfig> & { smtpPass?: string }) {
+    if (!email) return;
+    const next = { ...email, ...patch };
+    setEmail(next);
+    setEmailSaved(false);
+    const res = await fetch("/api/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: { ...next, smtpPass: patch.smtpPass ?? "" } }),
+    });
+    if (res.ok) {
+      const s = await res.json();
+      setEmail(s.email);
+      if (patch.smtpPass) setSmtpPass("");
+      setEmailSaved(true);
+      setTimeout(() => setEmailSaved(false), 2000);
+    }
+  }
 
   async function choose(next: RemovalMode) {
     setMode(next);
@@ -152,7 +186,7 @@ export default function SettingsPage() {
             </div>
           )}
           <p className="text-xs text-faint leading-relaxed">
-            either way, a full copy always lands in the local vault first —
+            either way, a full copy always lands in the local vault first,
             nothing is ever unrecoverable.
           </p>
         </div>
@@ -223,7 +257,7 @@ export default function SettingsPage() {
               </div>
               <label className="flex flex-col gap-1.5">
                 <span className="text-xs text-faint">
-                  custom rss feeds — one per line, each contributes its top story
+                  custom rss feeds, one per line, each contributes its top story
                 </span>
                 <textarea
                   value={feedsText}
@@ -237,7 +271,7 @@ export default function SettingsPage() {
               </label>
               <div className="flex gap-4">
                 <label className="flex flex-col gap-1.5 flex-1">
-                  <span className="text-xs text-faint">weather city — any city worldwide</span>
+                  <span className="text-xs text-faint">weather city, any city worldwide</span>
                   <input
                     value={brief.city}
                     onChange={(e) => setBrief({ ...brief, city: e.target.value })}
@@ -258,10 +292,76 @@ export default function SettingsPage() {
               </div>
               <p className="text-xs text-faint leading-relaxed">
                 sends automatically at that time (while inkwell is running) into a
-                &ldquo;Daily briefing&rdquo; folder — and emails you that it&apos;s
-                ready once SMTP_USER and SMTP_PASS (a gmail app password) are in
-                .env.local.
+                &ldquo;Daily briefing&rdquo; folder on your tablet.
               </p>
+            </>
+          )}
+        </div>
+
+        <div className="bg-card border border-line rounded-2xl px-6 py-5 shadow-soft flex flex-col gap-4">
+          <div className="flex items-baseline justify-between">
+            <h2 className="text-sm text-graphite">email me when the brief lands</h2>
+            {emailSaved && <span className="text-xs text-accent-deep">saved ✓</span>}
+          </div>
+          {email === null ? (
+            <p className="text-faint text-sm">loading…</p>
+          ) : (
+            <>
+              <label className="flex items-center gap-2.5 text-[15px]">
+                <input
+                  type="checkbox"
+                  checked={email.enabled}
+                  onChange={(e) => saveEmail({ enabled: e.target.checked })}
+                  className="accent-[var(--accent)] w-4 h-4"
+                />
+                send a &ldquo;your daily briefing is ready&rdquo; email each morning
+              </label>
+              {email.enabled && (
+                <>
+                  <label className="flex flex-col gap-1.5">
+                    <span className="text-xs text-faint">
+                      send it to (blank = your reMarkable account address)
+                    </span>
+                    <input
+                      value={email.to}
+                      onChange={(e) => setEmail({ ...email, to: e.target.value })}
+                      onBlur={() => saveEmail({ to: email.to })}
+                      placeholder="you@example.com"
+                      className="bg-paper border border-line rounded-xl px-3 py-2 text-sm outline-none focus:border-accent transition-colors placeholder:text-faint"
+                    />
+                  </label>
+                  <div className="flex gap-4 flex-wrap">
+                    <label className="flex flex-col gap-1.5 flex-1 min-w-48">
+                      <span className="text-xs text-faint">gmail address that sends it</span>
+                      <input
+                        value={email.smtpUser}
+                        onChange={(e) => setEmail({ ...email, smtpUser: e.target.value })}
+                        onBlur={() => saveEmail({ smtpUser: email.smtpUser })}
+                        placeholder="you@gmail.com"
+                        className="bg-paper border border-line rounded-xl px-3 py-2 text-sm outline-none focus:border-accent transition-colors placeholder:text-faint"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1.5 flex-1 min-w-48">
+                      <span className="text-xs text-faint">
+                        gmail app password{email.hasPassword ? " (saved ✓, enter to replace)" : ""}
+                      </span>
+                      <input
+                        type="password"
+                        value={smtpPass}
+                        onChange={(e) => setSmtpPass(e.target.value)}
+                        onBlur={() => smtpPass.trim() && saveEmail({ smtpPass })}
+                        placeholder={email.hasPassword ? "••••••••" : "16 characters"}
+                        className="bg-paper border border-line rounded-xl px-3 py-2 text-sm outline-none focus:border-accent transition-colors placeholder:text-faint"
+                      />
+                    </label>
+                  </div>
+                  <p className="text-xs text-faint leading-relaxed">
+                    create an app password at myaccount.google.com/apppasswords
+                    (needs 2 step verification). it is stored only on this mac, in
+                    inkwell&apos;s local database, and never shown back here.
+                  </p>
+                </>
+              )}
             </>
           )}
         </div>

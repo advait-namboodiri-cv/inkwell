@@ -9,6 +9,8 @@ export type BriefSections = {
   todos: boolean;
   news: boolean;
   weather: boolean;
+  inkStats: boolean;
+  history: boolean;
   quote: boolean;
 };
 
@@ -33,10 +35,27 @@ export type BriefConfig = {
   time: string; // "HH:MM" local time to auto-send
 };
 
-export type Settings = { removalMode: RemovalMode; brief: BriefConfig };
+// email notification config: the password is entered in the settings UI,
+// stored only in the local database (data/ is gitignored), and never sent
+// back to the browser. hasPassword tells the UI whether one is saved.
+export type EmailConfig = {
+  enabled: boolean;
+  to: string; // defaults to the reMarkable account address at send time
+  smtpUser: string;
+  hasPassword: boolean;
+};
+
+export type Settings = { removalMode: RemovalMode; brief: BriefConfig; email: EmailConfig };
 
 const DEFAULT_BRIEF: BriefConfig = {
-  sections: { todos: true, news: true, weather: true, quote: true },
+  sections: {
+    todos: true,
+    news: true,
+    weather: true,
+    inkStats: true,
+    history: true,
+    quote: true,
+  },
   presets: { bbc: true, motorsport: true, nyt: false },
   customFeeds: [],
   city: "Madison",
@@ -71,7 +90,20 @@ export function getSettings(): Settings {
       /* fall back to defaults */
     }
   }
-  return { removalMode: mode === "delete" ? "delete" : "trash", brief };
+  const email: EmailConfig = {
+    enabled: getSyncState("email_enabled") === "1",
+    to: getSyncState("email_to") ?? "",
+    smtpUser: getSyncState("smtp_user") ?? "",
+    hasPassword: Boolean(getSyncState("smtp_pass")),
+  };
+  return { removalMode: mode === "delete" ? "delete" : "trash", brief, email };
+}
+
+// server-only: the actual credentials for sending (db first, env fallback)
+export function getSmtpCredentials(): { user: string; pass: string } | null {
+  const user = getSyncState("smtp_user") || process.env.SMTP_USER || "";
+  const pass = getSyncState("smtp_pass") || process.env.SMTP_PASS || "";
+  return user && pass ? { user, pass } : null;
 }
 
 export function updateSettings(patch: Partial<Settings>): Settings {
@@ -96,6 +128,16 @@ export function updateSettings(patch: Partial<Settings>): Settings {
           : current.time,
     };
     setSyncState("brief_config", JSON.stringify(next));
+  }
+  if (patch.email) {
+    const e = patch.email as Partial<EmailConfig> & { smtpPass?: string };
+    if (typeof e.enabled === "boolean") setSyncState("email_enabled", e.enabled ? "1" : "0");
+    if (typeof e.to === "string") setSyncState("email_to", e.to.trim());
+    if (typeof e.smtpUser === "string") setSyncState("smtp_user", e.smtpUser.trim());
+    // only overwrite the stored password when a non-empty one is submitted
+    if (typeof e.smtpPass === "string" && e.smtpPass.trim()) {
+      setSyncState("smtp_pass", e.smtpPass.trim());
+    }
   }
   return getSettings();
 }
