@@ -203,6 +203,35 @@ export async function buildBrief(): Promise<Brief> {
   return { dateLabel, todos, news, weather, inkStats, history, quote };
 }
 
+// colors for the email's 7 day ink dots, oldest day first
+const DOT_EMPTY = "#e8e3d5";
+const DOT_RAMP: [number, string][] = [
+  [20, "#2c4655"],
+  [12, "#47758a"],
+  [6, "#6f97a6"],
+  [3, "#9fbcc7"],
+  [1, "#cfdde2"],
+];
+
+export function last7Dots(): string[] {
+  const db = getDb();
+  const dots: string[] = [];
+  for (let offset = 6; offset >= 0; offset--) {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - offset);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+    const n = (
+      db
+        .prepare("SELECT COUNT(*) AS n FROM page_events WHERE modifed >= ? AND modifed < ?")
+        .get(start.getTime(), end.getTime()) as { n: number }
+    ).n;
+    dots.push(DOT_RAMP.find(([min]) => n >= min)?.[1] ?? DOT_EMPTY);
+  }
+  return dots;
+}
+
 export async function sendBrief(): Promise<{ name: string; folder: string; emailed: boolean }> {
   const brief = await buildBrief();
   const pdf = await briefPdf(brief);
@@ -217,7 +246,7 @@ export async function sendBrief(): Promise<{ name: string; folder: string; email
   let emailed = false;
   try {
     const acct = parseAccount((await runRmapi(["account"])).stdout);
-    if (acct) emailed = await notifyBriefReady(acct.user, delivered.name);
+    if (acct) emailed = await notifyBriefReady(acct.user, brief, last7Dots());
   } catch {
     /* email is never fatal */
   }
