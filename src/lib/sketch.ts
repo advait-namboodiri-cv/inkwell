@@ -8,7 +8,7 @@ import { deliverPdf } from "./deliver";
 // Pure black vector strokes render beautifully on e-ink.
 const SYSTEM = `You draw black and white vector line art for an e-ink paper tablet. Given a request, respond with ONE complete SVG document and nothing else, no markdown fences, no commentary.
 
-Rules: viewBox="0 0 900 1200" portrait. Only stroke-based drawing: black strokes (#111) on no background, stroke-width between 2 and 6, fill="none" except small deliberate solid accents. Build the drawing from paths, circles, ellipses, rects and lines. Aim for clean, confident, minimal line art with good composition and plenty of whitespace. No <script>, no <image>, no external references, no gradients, no text unless the request asks for labels.`;
+Rules: viewBox="0 0 900 1200" portrait. Only stroke-based drawing: black strokes (#111) on no background, stroke-width between 2 and 6, fill="none" except small deliberate solid accents. Build the drawing from paths, circles, ellipses, rects and lines. Aim for clean, confident, minimal line art with good composition and plenty of whitespace. Fewer, bolder shapes beat many small ones: at most 40 elements, and the whole SVG under 4000 characters. No <script>, no <image>, no external references, no gradients, no text unless the request asks for labels.`;
 
 const PAGE: [number, number] = [450, 600];
 
@@ -29,9 +29,20 @@ function getSvgToPdf(): SvgToPdf {
 }
 
 function sanitizeSvg(raw: string): string {
-  const match = raw.match(/<svg[\s\S]*?<\/svg>/i);
-  if (!match) throw new Error("the model didn't return an svg, try again or rephrase");
-  return match[0]
+  const noFences = raw.replace(/```(?:svg|xml|html)?/gi, "");
+  let svg: string;
+  const match = noFences.match(/<svg[\s\S]*<\/svg>/i);
+  if (match) {
+    svg = match[0];
+  } else {
+    // model ran out of tokens mid-drawing: salvage what's there and close it
+    const start = noFences.search(/<svg/i);
+    if (start === -1) throw new Error("the model didn't return an svg, try again or rephrase");
+    let frag = noFences.slice(start);
+    frag = frag.slice(0, frag.lastIndexOf(">") + 1);
+    svg = `${frag}</svg>`;
+  }
+  return svg
     .replace(/<script[\s\S]*?<\/script>/gi, "")
     .replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, "")
     .replace(/\son\w+="[^"]*"/gi, "")
