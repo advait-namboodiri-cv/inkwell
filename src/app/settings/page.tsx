@@ -13,6 +13,14 @@ type Sections = {
   quote: boolean;
 };
 type EmailConfig = { enabled: boolean; to: string; smtpUser: string; hasPassword: boolean };
+type AiConfig = {
+  provider: "local" | "anthropic";
+  localUrl: string;
+  localModel: string;
+  anthropicModel: string;
+  hasKey: boolean;
+};
+type Spend = { totalCents: number; byFeature: { feature: string; n: number; cents: number }[] };
 type Presets = { bbc: boolean; motorsport: boolean; nyt: boolean };
 type BriefConfig = {
   sections: Sections;
@@ -62,6 +70,46 @@ export default function SettingsPage() {
   const [email, setEmail] = useState<EmailConfig | null>(null);
   const [smtpPass, setSmtpPass] = useState("");
   const [emailSaved, setEmailSaved] = useState(false);
+
+  const [ai, setAi] = useState<AiConfig | null>(null);
+  const [anthropicKey, setAnthropicKey] = useState("");
+  const [aiSaved, setAiSaved] = useState(false);
+  const [aiTesting, setAiTesting] = useState(false);
+  const [aiTest, setAiTest] = useState<{ ok: boolean; detail?: string; error?: string } | null>(null);
+  const [spend, setSpend] = useState<Spend | null>(null);
+
+  async function saveAi(patch: Partial<AiConfig> & { anthropicKey?: string }) {
+    if (!ai) return;
+    const next = { ...ai, ...patch };
+    setAi(next);
+    setAiSaved(false);
+    const res = await fetch("/api/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ai: { ...next, anthropicKey: patch.anthropicKey ?? "" } }),
+    });
+    if (res.ok) {
+      const s = await res.json();
+      setAi(s.ai);
+      if (patch.anthropicKey) {
+        setAnthropicKey("");
+        void testAi();
+      }
+      setAiSaved(true);
+      setTimeout(() => setAiSaved(false), 2000);
+    }
+  }
+
+  async function testAi() {
+    setAiTesting(true);
+    setAiTest(null);
+    try {
+      const res = await fetch("/api/ai-test", { method: "POST" });
+      setAiTest(await res.json());
+    } finally {
+      setAiTesting(false);
+    }
+  }
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; error?: string } | null>(null);
   const [disconnecting, setDisconnecting] = useState(false);
@@ -92,7 +140,10 @@ export default function SettingsPage() {
         setBrief(s.brief);
         setFeedsText(s.brief.customFeeds.join("\n"));
         setEmail(s.email);
+        setAi(s.ai);
       }
+      const sp = await fetch("/api/ai-spend");
+      if (sp.ok) setSpend(await sp.json());
     })();
   }, []);
 
@@ -401,6 +452,113 @@ export default function SettingsPage() {
                     inkwell&apos;s local database, and never shown back here.
                   </p>
                 </>
+              )}
+            </>
+          )}
+        </div>
+
+        <div className="bg-card border border-line rounded-2xl px-6 py-5 shadow-soft flex flex-col gap-4">
+          <div className="flex items-baseline justify-between">
+            <h2 className="text-sm text-graphite">ai</h2>
+            {aiSaved && <span className="text-xs text-accent-deep">saved ✓</span>}
+          </div>
+          {ai === null ? (
+            <p className="text-faint text-sm">loading…</p>
+          ) : (
+            <>
+              <div className="flex flex-wrap gap-2">
+                {(
+                  [
+                    { key: "local", label: "local model", hint: "free · private" },
+                    { key: "anthropic", label: "Claude API", hint: "costs cents" },
+                  ] as const
+                ).map((p) => (
+                  <button
+                    key={p.key}
+                    onClick={() => saveAi({ provider: p.key })}
+                    className={`text-sm rounded-full px-4 py-1.5 border transition-colors ${
+                      ai.provider === p.key
+                        ? "bg-accent-mist border-accent text-accent-deep"
+                        : "border-line text-graphite hover:border-faint"
+                    }`}
+                  >
+                    {p.label}
+                    <span className="text-[10px] ml-1.5 opacity-70">{p.hint}</span>
+                  </button>
+                ))}
+              </div>
+              {ai.provider === "local" ? (
+                <div className="flex gap-4 flex-wrap">
+                  <label className="flex flex-col gap-1.5 flex-1 min-w-48">
+                    <span className="text-xs text-faint">mlx server url</span>
+                    <input
+                      value={ai.localUrl}
+                      onChange={(e) => setAi({ ...ai, localUrl: e.target.value })}
+                      onBlur={() => saveAi({ localUrl: ai.localUrl })}
+                      className="bg-paper border border-line rounded-xl px-3 py-2 text-sm outline-none focus:border-accent transition-colors"
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1.5 flex-1 min-w-48">
+                    <span className="text-xs text-faint">model</span>
+                    <input
+                      value={ai.localModel}
+                      onChange={(e) => setAi({ ...ai, localModel: e.target.value })}
+                      onBlur={() => saveAi({ localModel: ai.localModel })}
+                      className="bg-paper border border-line rounded-xl px-3 py-2 text-sm outline-none focus:border-accent transition-colors"
+                    />
+                  </label>
+                </div>
+              ) : (
+                <div className="flex gap-4 flex-wrap">
+                  <label className="flex flex-col gap-1.5 flex-1 min-w-48">
+                    <span className="text-xs text-faint">model</span>
+                    <input
+                      value={ai.anthropicModel}
+                      onChange={(e) => setAi({ ...ai, anthropicModel: e.target.value })}
+                      onBlur={() => saveAi({ anthropicModel: ai.anthropicModel })}
+                      className="bg-paper border border-line rounded-xl px-3 py-2 text-sm outline-none focus:border-accent transition-colors"
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1.5 flex-1 min-w-48">
+                    <span className="text-xs text-faint">
+                      api key{ai.hasKey ? " (saved ✓, enter to replace)" : ""}
+                    </span>
+                    <input
+                      type="password"
+                      value={anthropicKey}
+                      onChange={(e) => setAnthropicKey(e.target.value)}
+                      onBlur={() => anthropicKey.trim() && saveAi({ anthropicKey })}
+                      placeholder={ai.hasKey ? "••••••••" : "sk-ant-..."}
+                      className="bg-paper border border-line rounded-xl px-3 py-2 text-sm outline-none focus:border-accent transition-colors placeholder:text-faint"
+                    />
+                  </label>
+                </div>
+              )}
+              <div className="flex items-center gap-3 flex-wrap">
+                <button
+                  onClick={testAi}
+                  disabled={aiTesting}
+                  className="text-sm border border-line rounded-full px-4 py-1.5 text-graphite hover:border-accent hover:text-accent-deep transition-colors disabled:opacity-40"
+                >
+                  {aiTesting ? "checking…" : "test connection"}
+                </button>
+                {aiTest &&
+                  (aiTest.ok ? (
+                    <span className="text-sm text-accent-deep">{aiTest.detail} ✓</span>
+                  ) : (
+                    <span className="text-sm text-danger">{aiTest.error}</span>
+                  ))}
+              </div>
+              {spend && (
+                <p className="text-xs text-faint leading-relaxed">
+                  spent so far: ${(spend.totalCents / 100).toFixed(2)}
+                  {spend.byFeature.length > 0 &&
+                    " · " +
+                      spend.byFeature
+                        .map((f) => `${f.n} ${f.feature}${f.n === 1 ? "" : "s"} ($${(f.cents / 100).toFixed(2)})`)
+                        .join(" · ")}
+                  {" · local generations are always free"}
+                </p>
               )}
             </>
           )}
