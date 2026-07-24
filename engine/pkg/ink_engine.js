@@ -36,6 +36,26 @@ function highlights_json(data) {
     }
 }
 exports.highlights_json = highlights_json;
+
+/**
+ * @param {Uint8Array} data
+ * @returns {string}
+ */
+function strokes_json(data) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passArray8ToWasm0(data, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.strokes_json(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+exports.strokes_json = strokes_json;
 function __wbg_get_imports() {
     const import0 = {
         __proto__: null,

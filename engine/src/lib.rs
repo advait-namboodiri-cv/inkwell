@@ -12,6 +12,9 @@ use wasm_bindgen::prelude::*;
 const HEADER: &[u8] = b"reMarkable .lines file, version=6";
 const HEADER_LEN: usize = 43;
 const BLOCK_GLYPH_ITEM: u8 = 0x03;
+const BLOCK_LINE_ITEM: u8 = 0x05;
+const ITEM_TYPE_GLYPH: u8 = 0x01;
+const ITEM_TYPE_LINE: u8 = 0x03;
 
 #[derive(Serialize, Debug, Clone, PartialEq)]
 pub struct Rect {
@@ -179,7 +182,7 @@ fn parse_glyph_block(payload: &[u8]) -> Result<Option<Highlight>, String> {
     let mut vr = Reader::new(sub);
     // the value subblock opens with one RAW (untagged) item-type byte
     let item_type = vr.u8()?;
-    if item_type != 0x01 {
+    if item_type != ITEM_TYPE_GLYPH {
         return Ok(None); // not a glyph value after all
     }
     let gvals = walk_tagged(&mut vr)?;
@@ -211,6 +214,111 @@ fn parse_glyph_block(payload: &[u8]) -> Result<Option<Highlight>, String> {
     }))
 }
 
+/// One pen stroke: tool, color, and enough point data for analytics.
+#[derive(Serialize, Debug, Clone)]
+pub struct Stroke {
+    pub tool: u32,
+    pub color: u32,
+    pub points: usize,
+    pub first_x: f32,
+    pub first_y: f32,
+    pub first_pressure: u32,
+    pub distance: f64,
+    pub pressure_sum: f64, // raw 0..255 units summed over points
+    pub speed_sum: f64,    // raw device units summed over points
+}
+
+fn parse_line_block(payload: &[u8], version: u8) -> Result<Option<Stroke>, String> {
+    let mut r = Reader::new(payload);
+    let vals = walk_tagged(&mut r)?;
+    let value_sub = vals.iter().find_map(|(i, v)| match (i, v) {
+        (6, Val::Sub(s)) => Some(*s),
+        _ => None,
+    });
+    let Some(sub) = value_sub else { return Ok(None) };
+    let mut vr = Reader::new(sub);
+    let item_type = vr.u8()?;
+    if item_type != ITEM_TYPE_LINE {
+        return Ok(None);
+    }
+    let lvals = walk_tagged(&mut vr)?;
+    let tool = u32_at(&lvals, 1).unwrap_or(0);
+    let color = u32_at(&lvals, 2).unwrap_or(0);
+    let points_sub = lvals.iter().find_map(|(i, v)| match (i, v) {
+        (5, Val::Sub(s)) => Some(*s),
+        _ => None,
+    });
+    let Some(pts) = points_sub else { return Ok(None) };
+
+    // point layout depends on the block's version byte
+    let size = if version >= 2 { 14 } else { 24 };
+    if pts.is_empty() || pts.len() % size != 0 {
+        return Ok(None);
+    }
+    let count = pts.len() / size;
+    let mut stroke = Stroke {
+        tool,
+        color,
+        points: count,
+        first_x: 0.0,
+        first_y: 0.0,
+        first_pressure: 0,
+        distance: 0.0,
+        pressure_sum: 0.0,
+        speed_sum: 0.0,
+    };
+    let mut prev: Option<(f32, f32)> = None;
+    for i in 0..count {
+        let o = i * size;
+        let x = f32::from_le_bytes(pts[o..o + 4].try_into().unwrap());
+        let y = f32::from_le_bytes(pts[o + 4..o + 8].try_into().unwrap());
+        let (speed, pressure): (f64, f64) = if version >= 2 {
+            let speed = u16::from_le_bytes(pts[o + 8..o + 10].try_into().unwrap()) as f64;
+            let pressure = pts[o + 13] as f64;
+            (speed, pressure)
+        } else {
+            let speed = f32::from_le_bytes(pts[o + 8..o + 12].try_into().unwrap()) as f64;
+            let pressure =
+                f32::from_le_bytes(pts[o + 20..o + 24].try_into().unwrap()) as f64 * 255.0;
+            (speed, pressure)
+        };
+        if i == 0 {
+            stroke.first_x = x;
+            stroke.first_y = y;
+            stroke.first_pressure = pressure as u32;
+        }
+        if let Some((px, py)) = prev {
+            stroke.distance += (((x - px) as f64).powi(2) + ((y - py) as f64).powi(2)).sqrt();
+        }
+        prev = Some((x, y));
+        stroke.pressure_sum += pressure;
+        stroke.speed_sum += speed;
+    }
+    Ok(Some(stroke))
+}
+
+pub fn extract_strokes(data: &[u8]) -> Result<Vec<Stroke>, String> {
+    if data.len() < HEADER_LEN || &data[..HEADER.len()] != HEADER {
+        return Err("not a .rm v6 file".into());
+    }
+    let mut r = Reader::new(&data[HEADER_LEN..]);
+    let mut out = Vec::new();
+    while !r.eof() {
+        let len = r.u32le()? as usize;
+        let _unknown = r.u8()?;
+        let _min_version = r.u8()?;
+        let current_version = r.u8()?;
+        let block_type = r.u8()?;
+        let payload = r.take(len)?;
+        if block_type == BLOCK_LINE_ITEM {
+            if let Ok(Some(s)) = parse_line_block(payload, current_version) {
+                out.push(s);
+            }
+        }
+    }
+    Ok(out)
+}
+
 pub fn extract_highlights(data: &[u8]) -> Result<Vec<Highlight>, String> {
     if data.len() < HEADER_LEN || &data[..HEADER.len()] != HEADER {
         return Err("not a .rm v6 file".into());
@@ -237,6 +345,14 @@ pub fn extract_highlights(data: &[u8]) -> Result<Vec<Highlight>, String> {
 pub fn highlights_json(data: &[u8]) -> String {
     match extract_highlights(data) {
         Ok(hl) => serde_json::to_string(&hl).unwrap_or_else(|_| "[]".into()),
+        Err(e) => format!("{{\"error\":{}}}", serde_json::to_string(&e).unwrap()),
+    }
+}
+
+#[wasm_bindgen]
+pub fn strokes_json(data: &[u8]) -> String {
+    match extract_strokes(data) {
+        Ok(s) => serde_json::to_string(&s).unwrap_or_else(|_| "[]".into()),
         Err(e) => format!("{{\"error\":{}}}", serde_json::to_string(&e).unwrap()),
     }
 }
@@ -289,5 +405,34 @@ mod tests {
     #[test]
     fn rejects_garbage() {
         assert!(extract_highlights(b"not a lines file").is_err());
+    }
+
+    #[test]
+    fn strokes_match_rmscene_oracle() {
+        let dir = fixture_dir();
+        let oracle_path = dir.join("lines-oracle.json");
+        if !oracle_path.exists() {
+            eprintln!("fixtures missing — skipping stroke oracle test");
+            return;
+        }
+        let oracle: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&oracle_path).unwrap()).unwrap();
+        let mut total = 0;
+        for (file, expected) in oracle.as_object().unwrap() {
+            let data = std::fs::read(dir.join(file)).unwrap();
+            let got = extract_strokes(&data).unwrap();
+            let exp = expected.as_array().unwrap();
+            assert_eq!(got.len(), exp.len(), "stroke count mismatch in {file}");
+            for (g, e) in got.iter().zip(exp) {
+                assert_eq!(g.tool as i64, e["tool"].as_i64().unwrap(), "tool in {file}");
+                assert_eq!(g.color as i64, e["color"].as_i64().unwrap());
+                assert_eq!(g.points as i64, e["points"].as_i64().unwrap());
+                assert!((g.first_x as f64 - e["first"]["x"].as_f64().unwrap()).abs() < 0.01);
+                assert!((g.first_y as f64 - e["first"]["y"].as_f64().unwrap()).abs() < 0.01);
+                assert_eq!(g.first_pressure as i64, e["first"]["pressure"].as_i64().unwrap());
+            }
+            total += got.len();
+        }
+        assert!(total >= 40, "expected the handwriting fixtures");
     }
 }
