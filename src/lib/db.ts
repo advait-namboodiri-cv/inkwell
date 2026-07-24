@@ -61,6 +61,26 @@ export function getDb(): Database.Database {
       done       INTEGER NOT NULL DEFAULT 0,
       created_at INTEGER NOT NULL
     );
+    -- every ai generation, for the spend meter (cost_cents = 0 for local)
+    CREATE TABLE IF NOT EXISTS ai_spend (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      created_at    INTEGER NOT NULL,
+      feature       TEXT NOT NULL,           -- summary | worksheet | sketch
+      provider      TEXT NOT NULL,           -- local | anthropic
+      model         TEXT NOT NULL,
+      input_tokens  INTEGER NOT NULL DEFAULT 0,
+      output_tokens INTEGER NOT NULL DEFAULT 0,
+      cost_cents    REAL NOT NULL DEFAULT 0
+    );
+    -- cached document summaries, frozen per content hash (currents-style)
+    CREATE TABLE IF NOT EXISTS summaries (
+      doc_id     TEXT PRIMARY KEY,
+      hash       TEXT NOT NULL,              -- bundle hash the summary was made from
+      summary    TEXT NOT NULL,
+      provider   TEXT NOT NULL,
+      model      TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
     -- text highlights parsed from .rm pages by the rust engine
     CREATE TABLE IF NOT EXISTS highlights (
       doc_id  TEXT NOT NULL,

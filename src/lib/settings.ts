@@ -45,7 +45,32 @@ export type EmailConfig = {
   hasPassword: boolean;
 };
 
-export type Settings = { removalMode: RemovalMode; brief: BriefConfig; email: EmailConfig };
+// AI config: local MLX server (free, private) or the Anthropic API.
+// The Anthropic key is entered in settings, stored only in the local db,
+// and never returned to the browser (hasKey mirrors the email pattern).
+export type AiProvider = "local" | "anthropic";
+export type AiConfig = {
+  provider: AiProvider;
+  localUrl: string; // OpenAI-compatible base url of the mlx server
+  localModel: string;
+  anthropicModel: string;
+  hasKey: boolean;
+};
+
+export type Settings = {
+  removalMode: RemovalMode;
+  brief: BriefConfig;
+  email: EmailConfig;
+  ai: AiConfig;
+};
+
+const DEFAULT_AI: AiConfig = {
+  provider: "local",
+  localUrl: "http://localhost:8080/v1",
+  localModel: "mlx-community/Qwen2.5-14B-Instruct-4bit",
+  anthropicModel: "claude-opus-4-8",
+  hasKey: false,
+};
 
 const DEFAULT_BRIEF: BriefConfig = {
   sections: {
@@ -96,7 +121,14 @@ export function getSettings(): Settings {
     smtpUser: getSyncState("smtp_user") ?? "",
     hasPassword: Boolean(getSyncState("smtp_pass")),
   };
-  return { removalMode: mode === "delete" ? "delete" : "trash", brief, email };
+  const ai: AiConfig = {
+    provider: getSyncState("ai_provider") === "anthropic" ? "anthropic" : "local",
+    localUrl: getSyncState("ai_local_url") || DEFAULT_AI.localUrl,
+    localModel: getSyncState("ai_local_model") || DEFAULT_AI.localModel,
+    anthropicModel: getSyncState("ai_anthropic_model") || DEFAULT_AI.anthropicModel,
+    hasKey: Boolean(getSyncState("anthropic_key")),
+  };
+  return { removalMode: mode === "delete" ? "delete" : "trash", brief, email, ai };
 }
 
 // server-only: the actual credentials for sending (db first, env fallback)
@@ -104,6 +136,11 @@ export function getSmtpCredentials(): { user: string; pass: string } | null {
   const user = getSyncState("smtp_user") || process.env.SMTP_USER || "";
   const pass = getSyncState("smtp_pass") || process.env.SMTP_PASS || "";
   return user && pass ? { user, pass } : null;
+}
+
+// server-only: the Anthropic API key (db first, env fallback)
+export function getAnthropicKey(): string | null {
+  return getSyncState("anthropic_key") || process.env.ANTHROPIC_API_KEY || null;
 }
 
 export function updateSettings(patch: Partial<Settings>): Settings {
@@ -138,6 +175,25 @@ export function updateSettings(patch: Partial<Settings>): Settings {
     // google displays app passwords with spaces, so strip all whitespace
     if (typeof e.smtpPass === "string" && e.smtpPass.trim()) {
       setSyncState("smtp_pass", e.smtpPass.replace(/\s+/g, ""));
+    }
+  }
+  if (patch.ai) {
+    const a = patch.ai as Partial<AiConfig> & { anthropicKey?: string };
+    if (a.provider === "local" || a.provider === "anthropic") {
+      setSyncState("ai_provider", a.provider);
+    }
+    if (typeof a.localUrl === "string" && a.localUrl.trim()) {
+      setSyncState("ai_local_url", a.localUrl.trim().replace(/\/$/, ""));
+    }
+    if (typeof a.localModel === "string" && a.localModel.trim()) {
+      setSyncState("ai_local_model", a.localModel.trim());
+    }
+    if (typeof a.anthropicModel === "string" && a.anthropicModel.trim()) {
+      setSyncState("ai_anthropic_model", a.anthropicModel.trim());
+    }
+    // only overwrite the stored key when a non-empty one is submitted
+    if (typeof a.anthropicKey === "string" && a.anthropicKey.trim()) {
+      setSyncState("anthropic_key", a.anthropicKey.trim());
     }
   }
   return getSettings();
