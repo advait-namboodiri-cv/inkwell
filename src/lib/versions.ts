@@ -79,6 +79,47 @@ export type VersionEntry = {
   changedPages: { id: string; index: number }[]; // 1-based position in this version
 };
 
+// reconstructed history: every page in the newest snapshot carries its own
+// last-edited timestamp, so we can show WHEN the doc evolved even before any
+// snapshots accumulated. previews for these entries render today's ink (the
+// past pixels were never captured by anyone).
+export type ActivityDay = {
+  day: string; // e.g. "sun, jul 20"
+  ts: number;
+  pages: { id: string; index: number }[];
+};
+
+export async function activity(docId: string): Promise<{ latestHash: string; days: ActivityDay[] }> {
+  await ensureSeeded(docId);
+  const row = getDb()
+    .prepare(
+      `SELECT hash, pages FROM doc_versions WHERE doc_id = ? ORDER BY captured_at DESC LIMIT 1`
+    )
+    .get(docId) as { hash: string; pages: string } | undefined;
+  if (!row) return { latestHash: "", days: [] };
+  const pages = JSON.parse(row.pages) as PageStamp[];
+  const byDay = new Map<string, ActivityDay>();
+  pages.forEach((p, i) => {
+    if (!p.modifed) return;
+    const d = new Date(p.modifed);
+    const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    let entry = byDay.get(key);
+    if (!entry) {
+      entry = {
+        day: d
+          .toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
+          .toLowerCase(),
+        ts: new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(),
+        pages: [],
+      };
+      byDay.set(key, entry);
+    }
+    if (entry.pages.length < 24) entry.pages.push({ id: p.id, index: i + 1 });
+  });
+  const days = [...byDay.values()].sort((a, b) => b.ts - a.ts).slice(0, 90);
+  return { latestHash: row.hash, days };
+}
+
 export async function timeline(docId: string): Promise<VersionEntry[]> {
   await ensureSeeded(docId);
   const rows = getDb()

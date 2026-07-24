@@ -15,15 +15,21 @@ type Version = {
   changed: number;
   changedPages: { id: string; index: number }[];
 };
+type ActivityDay = { day: string; ts: number; pages: { id: string; index: number }[] };
 
 export default function TimeMachinePage() {
   const [q, setQ] = useState("");
   const [docs, setDocs] = useState<Doc[]>([]);
   const [doc, setDoc] = useState<Doc | null>(null);
   const [versions, setVersions] = useState<Version[] | null>(null);
+  const [activity, setActivity] = useState<ActivityDay[]>([]);
+  const [latestHash, setLatestHash] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [preview, setPreview] = useState<{ src: string; label: string } | null>(null);
+  const [preview, setPreview] = useState<{ src: string; label: string; note?: string } | null>(
+    null
+  );
+  const [previewFailed, setPreviewFailed] = useState(false);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function onQuery(value: string) {
@@ -44,17 +50,28 @@ export default function TimeMachinePage() {
     setDocs([]);
     setQ("");
     setVersions(null);
+    setActivity([]);
     setPreview(null);
+    setPreviewFailed(false);
     setError(null);
     setBusy(true);
     try {
       const res = await fetch(`/api/timemachine?docId=${d.id}`);
       const data = await res.json();
       if (!res.ok) setError(data.error ?? "something went wrong");
-      else setVersions(data.versions);
+      else {
+        setVersions(data.versions);
+        setActivity(data.activity ?? []);
+        setLatestHash(data.latestHash ?? "");
+      }
     } finally {
       setBusy(false);
     }
+  }
+
+  function show(src: string, label: string, note?: string) {
+    setPreview({ src, label, note });
+    setPreviewFailed(false);
   }
 
   return (
@@ -98,18 +115,61 @@ export default function TimeMachinePage() {
 
         {doc && versions && (
           <div className="grid md:grid-cols-2 gap-6 items-start">
-            <div className="bg-card border border-line rounded-2xl px-6 py-5 shadow-soft">
-              <div className="flex items-baseline justify-between mb-3">
-                <h2 className="text-sm text-graphite truncate">{doc.name}</h2>
-                <span className="text-xs text-faint shrink-0">
-                  {versions.length} snapshot{versions.length === 1 ? "" : "s"}
-                </span>
+            <div className="flex flex-col gap-6">
+              <div className="bg-card border border-line rounded-2xl px-6 py-5 shadow-soft">
+                <div className="flex items-baseline justify-between mb-3">
+                  <h2 className="text-sm text-graphite truncate">{doc.name} · history</h2>
+                  <span className="text-xs text-faint shrink-0">
+                    {activity.length} day{activity.length === 1 ? "" : "s"} of writing
+                  </span>
+                </div>
+                {activity.length === 0 ? (
+                  <p className="text-sm text-faint">
+                    no page timestamps in this doc (books you only read land here)
+                  </p>
+                ) : (
+                  <ul className="flex flex-col">
+                    {activity.map((a) => (
+                      <li
+                        key={a.ts}
+                        className="py-3 border-b border-line last:border-0 flex flex-col gap-1.5"
+                      >
+                        <div className="flex items-baseline gap-3">
+                          <span className="text-sm">{a.day}</span>
+                          <span className="text-xs text-faint">
+                            {a.pages.length} page{a.pages.length === 1 ? "" : "s"} touched
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {a.pages.map((p) => (
+                            <button
+                              key={p.id}
+                              onClick={() =>
+                                show(
+                                  `/api/page-svg?docId=${doc.id}&hash=${latestHash}&pageId=${p.id}`,
+                                  `p. ${p.index} · ${a.day}`,
+                                  "showing this page's ink as it looks today"
+                                )
+                              }
+                              className="text-xs border border-line rounded-full px-2.5 py-1 text-graphite hover:border-accent hover:text-accent-deep transition-colors"
+                            >
+                              p. {p.index}
+                            </button>
+                          ))}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
-              {versions.length === 0 ? (
-                <p className="text-sm text-faint">
-                  no snapshots yet, sync once and this doc&apos;s history starts recording
-                </p>
-              ) : (
+
+              <div className="bg-card border border-line rounded-2xl px-6 py-5 shadow-soft">
+                <div className="flex items-baseline justify-between mb-3">
+                  <h2 className="text-sm text-graphite">snapshots</h2>
+                  <span className="text-xs text-faint shrink-0">
+                    exact ink states, recorded from now on
+                  </span>
+                </div>
                 <ul className="flex flex-col">
                   {versions.map((v, i) => (
                     <li
@@ -127,7 +187,7 @@ export default function TimeMachinePage() {
                       </div>
                       <div className="text-xs text-graphite">
                         {i === versions.length - 1
-                          ? "first snapshot"
+                          ? "history starts here"
                           : [
                               v.added > 0 ? `+${v.added} page${v.added === 1 ? "" : "s"}` : "",
                               v.removed > 0 ? `−${v.removed}` : "",
@@ -142,10 +202,11 @@ export default function TimeMachinePage() {
                             <button
                               key={p.id}
                               onClick={() =>
-                                setPreview({
-                                  src: `/api/page-svg?docId=${doc.id}&hash=${v.hash}&pageId=${p.id}`,
-                                  label: `p. ${p.index} at ${v.hash.slice(0, 7)}`,
-                                })
+                                show(
+                                  `/api/page-svg?docId=${doc.id}&hash=${v.hash}&pageId=${p.id}`,
+                                  `p. ${p.index} at ${v.hash.slice(0, 7)}`,
+                                  "the ink exactly as it was in this snapshot"
+                                )
                               }
                               className="text-xs border border-line rounded-full px-2.5 py-1 text-graphite hover:border-accent hover:text-accent-deep transition-colors"
                             >
@@ -157,24 +218,36 @@ export default function TimeMachinePage() {
                     </li>
                   ))}
                 </ul>
-              )}
+              </div>
             </div>
 
             <div className="bg-card border border-line rounded-2xl px-6 py-5 shadow-soft md:sticky md:top-6">
-              <h2 className="text-sm text-graphite mb-3">
+              <h2 className="text-sm text-graphite mb-1">
                 {preview ? preview.label : "page preview"}
               </h2>
-              {preview ? (
+              {preview?.note && !previewFailed && (
+                <p className="text-xs text-faint mb-3">{preview.note}</p>
+              )}
+              {!preview && (
+                <p className="text-sm text-faint mt-2">
+                  click a page to see its ink
+                </p>
+              )}
+              {preview && previewFailed && (
+                <p className="text-sm text-faint mt-2">
+                  nothing to render here, this page has no ink strokes (typed or
+                  book pages render blank)
+                </p>
+              )}
+              {preview && !previewFailed && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
+                  key={preview.src}
                   src={preview.src}
                   alt={preview.label}
+                  onError={() => setPreviewFailed(true)}
                   className="w-full h-auto border border-line rounded-xl bg-white"
                 />
-              ) : (
-                <p className="text-sm text-faint">
-                  click a changed page to see the ink as it was in that snapshot
-                </p>
               )}
             </div>
           </div>
