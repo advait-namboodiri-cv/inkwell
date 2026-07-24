@@ -7,15 +7,27 @@ import path from "node:path";
 import { getDb } from "./db";
 import { chat, type AiResult } from "./ai";
 
-// pdf-parse is CJS; require it at runtime so the bundler leaves it alone
-type PdfParse = (data: Buffer) => Promise<{ text: string }>;
-let pdfParse: PdfParse | null = null;
-function getPdfParse(): PdfParse {
-  if (!pdfParse) {
+// pdf-parse v2 exposes a PDFParse class; require it at runtime so the
+// bundler leaves it alone
+type PdfParseModule = {
+  PDFParse: new (opts: { data: Buffer }) => {
+    getText(): Promise<{ text: string }>;
+    destroy(): Promise<void>;
+  };
+};
+let pdfMod: PdfParseModule | null = null;
+async function pdfText(data: Buffer): Promise<string> {
+  if (!pdfMod) {
     const req = createRequire(path.join(process.cwd(), "package.json"));
-    pdfParse = req("pdf-parse") as PdfParse;
+    pdfMod = req("pdf-parse") as PdfParseModule;
   }
-  return pdfParse;
+  const parser = new pdfMod.PDFParse({ data });
+  try {
+    const result = await parser.getText();
+    return result.text ?? "";
+  } finally {
+    await parser.destroy().catch(() => {});
+  }
 }
 
 const pExecFile = promisify(execFile);
@@ -57,8 +69,7 @@ async function extractText(docId: string): Promise<string> {
       maxBuffer: 256 * 1024 * 1024,
     });
     fs.writeFileSync(pdfPath, stdout as Buffer);
-    const parsed = await getPdfParse()(fs.readFileSync(pdfPath));
-    const text = (parsed.text ?? "").replace(/\s+/g, " ").trim();
+    const text = (await pdfText(fs.readFileSync(pdfPath))).replace(/\s+/g, " ").trim();
     if (text.length < 200) {
       throw new Error(
         "this document has almost no extractable text (probably pure handwriting). summaries need typed or book text for now"
