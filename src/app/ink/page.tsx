@@ -123,6 +123,48 @@ export default function InkPage() {
                 )}
               </div>
             </div>
+
+            <details className="bg-card border border-line rounded-2xl px-6 py-4 shadow-soft text-graphite">
+              <summary className="text-sm cursor-pointer select-none marker:text-faint">
+                how this is measured
+              </summary>
+              <div className="text-sm text-graphite leading-relaxed mt-3 flex flex-col gap-2.5">
+                <p>
+                  every page you draw on is stored in reMarkable&apos;s own binary
+                  format. as you write, the tablet samples your pen many times a
+                  second and records its position, pressure, speed and tilt into
+                  that file. these numbers are read straight from that data, not
+                  estimated.
+                </p>
+                <p>
+                  inkwell parses those files with a custom engine written in rust,
+                  validated stroke for stroke against the reference implementation.
+                  it pulls out every pen stroke and every sample point.
+                </p>
+                <ul className="flex flex-col gap-1.5 text-[13px] text-graphite">
+                  <li>
+                    <span className="text-ink">strokes</span> — one continuous
+                    pen-down motion each; counted across every page.
+                  </li>
+                  <li>
+                    <span className="text-ink">distance</span> — the straight-line
+                    gap between consecutive sample points, summed over every
+                    stroke, then converted to real length using the screen&apos;s
+                    226 dpi (1 unit ≈ 0.112 mm). it is the path your pen actually
+                    traced, ink on the page.
+                  </li>
+                  <li>
+                    <span className="text-ink">pressure</span> — each sample carries
+                    a 0 to 255 pressure reading from the digitizer; this is their
+                    average as a percent.
+                  </li>
+                  <li>
+                    <span className="text-ink">pens</span> — each stroke records which
+                    tool drew it, so the counts are your genuine pen usage.
+                  </li>
+                </ul>
+              </div>
+            </details>
           </>
         )}
       </section>
