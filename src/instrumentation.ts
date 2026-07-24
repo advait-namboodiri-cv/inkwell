@@ -7,6 +7,11 @@ export async function register() {
   const { getSettings } = await import("./lib/settings");
   const { briefSentToday, sendBrief } = await import("./lib/brief");
   const { isPaired } = await import("./lib/rmapi");
+  const { ensureMlx } = await import("./lib/mlx");
+
+  // bring the local model up with the app, and keep it up
+  void ensureMlx();
+  setInterval(() => void ensureMlx(), 60_000);
 
   setInterval(async () => {
     try {
