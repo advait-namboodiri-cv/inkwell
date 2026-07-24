@@ -1,13 +1,9 @@
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
 import { NextRequest, NextResponse } from "next/server";
 import { versionBundlePath } from "@/lib/versions";
+import { renderPageSvg } from "@/lib/render";
 
 export const runtime = "nodejs";
-const pExecFile = promisify(execFile);
 
 const ID_RE = /^[0-9a-f-]{8,64}$/i;
 
@@ -23,29 +19,14 @@ export async function GET(req: NextRequest) {
   if (!fs.existsSync(bundle)) {
     return NextResponse.json({ error: "snapshot not found" }, { status: 404 });
   }
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "inkwell-svg-"));
-  try {
-    const rmPath = path.join(tmp, "page.rm");
-    const svgPath = path.join(tmp, "page.svg");
-    const { stdout } = await pExecFile("unzip", ["-p", bundle, `*/${pageId}.rm`], {
-      encoding: "buffer",
-      maxBuffer: 64 * 1024 * 1024,
-    });
-    if ((stdout as Buffer).length === 0) {
-      return NextResponse.json({ error: "no ink on this page yet" }, { status: 404 });
-    }
-    fs.writeFileSync(rmPath, stdout as Buffer);
-    await pExecFile("rmc", ["-t", "svg", "-o", svgPath, rmPath], { timeout: 30_000 });
-    const svg = fs.readFileSync(svgPath, "utf8");
-    return new NextResponse(svg, {
-      headers: {
-        "Content-Type": "image/svg+xml",
-        "Cache-Control": "private, max-age=86400", // snapshots are immutable
-      },
-    });
-  } catch {
-    return NextResponse.json({ error: "couldn't render this page" }, { status: 502 });
-  } finally {
-    fs.rmSync(tmp, { recursive: true, force: true });
+  const svg = await renderPageSvg(bundle, pageId);
+  if (!svg) {
+    return NextResponse.json({ error: "no ink on this page" }, { status: 404 });
   }
+  return new NextResponse(svg, {
+    headers: {
+      "Content-Type": "image/svg+xml",
+      "Cache-Control": "private, max-age=86400", // snapshots are immutable
+    },
+  });
 }
