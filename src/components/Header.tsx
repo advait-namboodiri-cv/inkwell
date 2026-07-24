@@ -8,6 +8,8 @@ const TABS = [
   { href: "/", label: "dashboard" },
   { href: "/todos", label: "todos" },
   { href: "/janitor", label: "janitor" },
+  { href: "/timemachine", label: "time machine" },
+  { href: "/ink", label: "ink" },
   { href: "/superpowers", label: "superpowers" },
   { href: "/settings", label: "settings" },
 ];
