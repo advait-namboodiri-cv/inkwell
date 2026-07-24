@@ -48,8 +48,7 @@ export default function WorksheetCard() {
       <div>
         <h2 className="text-sm text-graphite">generate a worksheet</h2>
         <p className="text-xs text-faint mt-1 leading-relaxed">
-          describe the practice you want and a typeset problem set lands in your
-          inkwell inbox, with room to work by hand. free on the local model.
+          describe a practice set, get a typeset PDF to solve by hand
         </p>
       </div>
       <textarea

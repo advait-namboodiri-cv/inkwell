@@ -133,8 +133,7 @@ export default function JanitorPage() {
           <>
             <div className="bg-card border border-line rounded-2xl px-6 py-4 shadow-soft flex items-center justify-between gap-4">
               <p className="text-sm text-graphite">
-                everything removed here is first archived to a local vault, nothing
-                is ever unrecoverable
+                removed docs are archived to a local vault first, nothing is unrecoverable
               </p>
               {count > 0 &&
                 (confirming ? (

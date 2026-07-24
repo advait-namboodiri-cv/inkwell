@@ -59,9 +59,7 @@ export default function SketchCard() {
       <div>
         <h2 className="text-sm text-graphite">ai sketch</h2>
         <p className="text-xs text-faint mt-1 leading-relaxed">
-          prompt to vector line art. preview it here first, send to the tablet
-          only if you like it. honest note: sketches are the one feature where
-          the Claude API clearly beats the local model.
+          prompt to line art. preview, then send if you like it.
         </p>
       </div>
       <form onSubmit={generate} className="flex gap-2">

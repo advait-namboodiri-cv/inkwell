@@ -65,9 +65,8 @@ export default function SuperpowersPage() {
           <div>
             <h2 className="text-sm text-graphite">send an article to your tablet</h2>
             <p className="text-xs text-faint mt-1 leading-relaxed">
-              paste a link and inkwell strips it to clean reader text, typesets a
-              calm PDF, and drops it in the <span className="text-graphite">inkwell inbox</span>{" "}
-              folder on your reMarkable
+              paste a link, get a clean PDF in the <span className="text-graphite">inkwell inbox</span>{" "}
+              folder
             </p>
           </div>
           <div className="flex gap-2">
@@ -100,10 +99,8 @@ export default function SuperpowersPage() {
             <div>
               <h2 className="text-sm text-graphite">daily brief</h2>
               <p className="text-xs text-faint mt-1 leading-relaxed">
-                todos, top stories from your feeds, weather, a resurfaced
-                passage, auto-delivered every morning to a{" "}
-                <span className="text-graphite">Daily briefing</span> folder.
-                tune it in settings.
+                todos, news, weather and more, every morning, delivered to a{" "}
+                <span className="text-graphite">Daily briefing</span> folder. tune it in settings.
               </p>
             </div>
             <button

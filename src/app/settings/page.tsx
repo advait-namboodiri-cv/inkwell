@@ -365,8 +365,7 @@ export default function SettingsPage() {
                 </label>
               </div>
               <p className="text-xs text-faint leading-relaxed">
-                sends automatically at that time (while inkwell is running) into a
-                &ldquo;Daily briefing&rdquo; folder on your tablet.
+                auto-sends at this time while inkwell is running, into a &ldquo;Daily briefing&rdquo; folder.
               </p>
             </>
           )}
@@ -447,9 +446,7 @@ export default function SettingsPage() {
                       ))}
                   </div>
                   <p className="text-xs text-faint leading-relaxed">
-                    create an app password at myaccount.google.com/apppasswords
-                    (needs 2 step verification). it is stored only on this mac, in
-                    inkwell&apos;s local database, and never shown back here.
+                    app password from myaccount.google.com/apppasswords · stored locally, never shown
                   </p>
                 </>
               )}
@@ -551,13 +548,13 @@ export default function SettingsPage() {
               </div>
               {spend && (
                 <p className="text-xs text-faint leading-relaxed">
-                  spent so far: ${(spend.totalCents / 100).toFixed(2)}
+                  spent: ${(spend.totalCents / 100).toFixed(2)}
                   {spend.byFeature.length > 0 &&
                     " · " +
                       spend.byFeature
                         .map((f) => `${f.n} ${f.feature}${f.n === 1 ? "" : "s"} ($${(f.cents / 100).toFixed(2)})`)
                         .join(" · ")}
-                  {" · local generations are always free"}
+                  {" · local runs are always free"}
                 </p>
               )}
             </>
@@ -567,8 +564,7 @@ export default function SettingsPage() {
         <div className="bg-card border border-line rounded-2xl px-6 py-5 shadow-soft flex flex-col gap-3">
           <h2 className="text-sm text-graphite">device</h2>
           <p className="text-xs text-faint leading-relaxed">
-            disconnecting removes inkwell&apos;s token from this mac. your stats,
-            vault and settings stay; reconnect anytime with a fresh one-time code.
+            removes the token from this mac. stats, vault and settings stay.
           </p>
           {disconnecting ? (
             <div className="flex items-center gap-3">

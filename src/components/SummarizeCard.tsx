@@ -59,8 +59,7 @@ export default function SummarizeCard() {
       <div>
         <h2 className="text-sm text-graphite">summarize a document</h2>
         <p className="text-xs text-faint mt-1 leading-relaxed">
-          pick any doc with typed or book text and the ai writes a short grounded
-          summary, cached forever. local model runs free; switch providers in settings.
+          a short, grounded ai summary of any text based doc
         </p>
       </div>
       <div className="relative">

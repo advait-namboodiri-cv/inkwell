@@ -87,9 +87,7 @@ export default function Home() {
             {pairing ? "pairing…" : "pair"}
           </button>
           <p className="text-faint text-xs leading-relaxed">
-            your code is exchanged for a device token that never leaves this
-            mac. inkwell only ever reads your library unless you ask it to
-            change something.
+            your code becomes a device token that never leaves this mac
           </p>
         </form>
       )}
