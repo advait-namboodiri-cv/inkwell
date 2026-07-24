@@ -47,7 +47,7 @@ export default function TodosPage() {
   return (
     <main className="page-fade flex-1 flex flex-col items-center px-6 py-16">
       <Header />
-      <section className="w-full max-w-lg flex flex-col gap-6">
+      <section className="w-full max-w-3xl flex flex-col gap-6">
         <form
           onSubmit={add}
           className="bg-card border border-line rounded-2xl px-6 py-5 shadow-soft flex flex-col gap-3"

@@ -126,7 +126,7 @@ export default function JanitorPage() {
   return (
     <main className="page-fade flex-1 flex flex-col items-center px-6 py-16">
       <Header />
-      <section className="w-full max-w-2xl flex flex-col gap-6">
+      <section className="w-full max-w-4xl flex flex-col gap-6">
         {!report ? (
           <p className="text-faint text-center">surveying the library…</p>
         ) : (

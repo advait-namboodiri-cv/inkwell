@@ -119,7 +119,7 @@ export default function Dashboard({ user }: { user: string }) {
   }, [sync, loadCards, watchBackfill]);
 
   return (
-    <section className="w-full max-w-2xl flex flex-col gap-6">
+    <section className="w-full max-w-6xl flex flex-col gap-6">
       <div className="bg-card border border-line rounded-2xl px-6 py-4 shadow-soft flex items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-sm text-accent-deep">
@@ -161,7 +161,7 @@ export default function Dashboard({ user }: { user: string }) {
               {backfill.failed > 0 ? ` · ${backfill.failed} skipped` : ""}
             </p>
           )}
-          <div className="grid sm:grid-cols-2 gap-6 items-start">
+          <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-6 items-start">
             {census && <CensusCard census={census} />}
             {shelf && <ShelfCard shelf={shelf} />}
             {hl && <HighlightsCard data={hl} />}

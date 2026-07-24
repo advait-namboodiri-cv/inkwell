@@ -62,6 +62,26 @@ export default function SettingsPage() {
   const [email, setEmail] = useState<EmailConfig | null>(null);
   const [smtpPass, setSmtpPass] = useState("");
   const [emailSaved, setEmailSaved] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; error?: string } | null>(null);
+  const [disconnecting, setDisconnecting] = useState(false);
+
+  async function testConnection() {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const res = await fetch("/api/email-test", { method: "POST" });
+      setTestResult(await res.json());
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  async function disconnect() {
+    setDisconnecting(true);
+    await fetch("/api/pair", { method: "DELETE" });
+    window.location.href = "/";
+  }
 
   useEffect(() => {
     void (async () => {
@@ -89,7 +109,10 @@ export default function SettingsPage() {
     if (res.ok) {
       const s = await res.json();
       setEmail(s.email);
-      if (patch.smtpPass) setSmtpPass("");
+      if (patch.smtpPass) {
+        setSmtpPass("");
+        void testConnection(); // verify right after a new password is saved
+      }
       setEmailSaved(true);
       setTimeout(() => setEmailSaved(false), 2000);
     }
@@ -149,7 +172,7 @@ export default function SettingsPage() {
   return (
     <main className="page-fade flex-1 flex flex-col items-center px-6 py-16">
       <Header />
-      <section className="w-full max-w-lg flex flex-col gap-6">
+      <section className="w-full max-w-3xl flex flex-col gap-6">
         <div className="bg-card border border-line rounded-2xl px-6 py-5 shadow-soft flex flex-col gap-4">
           <div className="flex items-baseline justify-between">
             <h2 className="text-sm text-graphite">when the janitor removes a doc</h2>
@@ -355,6 +378,23 @@ export default function SettingsPage() {
                       />
                     </label>
                   </div>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <button
+                      onClick={testConnection}
+                      disabled={testing || !email.hasPassword}
+                      className="text-sm border border-line rounded-full px-4 py-1.5 text-graphite hover:border-accent hover:text-accent-deep transition-colors disabled:opacity-40"
+                    >
+                      {testing ? "checking…" : "test connection"}
+                    </button>
+                    {testResult &&
+                      (testResult.ok ? (
+                        <span className="text-sm text-accent-deep">
+                          connected to gmail ✓
+                        </span>
+                      ) : (
+                        <span className="text-sm text-danger">{testResult.error}</span>
+                      ))}
+                  </div>
                   <p className="text-xs text-faint leading-relaxed">
                     create an app password at myaccount.google.com/apppasswords
                     (needs 2 step verification). it is stored only on this mac, in
@@ -363,6 +403,40 @@ export default function SettingsPage() {
                 </>
               )}
             </>
+          )}
+        </div>
+
+        <div className="bg-card border border-line rounded-2xl px-6 py-5 shadow-soft flex flex-col gap-3">
+          <h2 className="text-sm text-graphite">device</h2>
+          <p className="text-xs text-faint leading-relaxed">
+            disconnecting removes inkwell&apos;s token from this mac. your stats,
+            vault and settings stay; reconnect anytime with a fresh one-time code.
+          </p>
+          {disconnecting ? (
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-danger">
+                are you sure? you&apos;ll need a new code to reconnect
+              </span>
+              <button
+                onClick={disconnect}
+                className="bg-danger text-paper text-sm rounded-full px-4 py-2"
+              >
+                yes, disconnect
+              </button>
+              <button
+                onClick={() => setDisconnecting(false)}
+                className="text-sm text-graphite px-2"
+              >
+                cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setDisconnecting(true)}
+              className="self-start bg-danger text-paper text-sm rounded-full px-4 py-2"
+            >
+              disconnect this reMarkable
+            </button>
           )}
         </div>
       </section>
