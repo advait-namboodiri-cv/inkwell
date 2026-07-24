@@ -1,11 +1,22 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { createRequire } from "node:module";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import pdfParse from "pdf-parse";
 import { getDb } from "./db";
 import { chat, type AiResult } from "./ai";
+
+// pdf-parse is CJS; require it at runtime so the bundler leaves it alone
+type PdfParse = (data: Buffer) => Promise<{ text: string }>;
+let pdfParse: PdfParse | null = null;
+function getPdfParse(): PdfParse {
+  if (!pdfParse) {
+    const req = createRequire(path.join(process.cwd(), "package.json"));
+    pdfParse = req("pdf-parse") as PdfParse;
+  }
+  return pdfParse;
+}
 
 const pExecFile = promisify(execFile);
 const BUNDLE_DIR = path.join(process.cwd(), "data", "bundles");
@@ -46,7 +57,7 @@ async function extractText(docId: string): Promise<string> {
       maxBuffer: 256 * 1024 * 1024,
     });
     fs.writeFileSync(pdfPath, stdout as Buffer);
-    const parsed = await pdfParse(fs.readFileSync(pdfPath));
+    const parsed = await getPdfParse()(fs.readFileSync(pdfPath));
     const text = (parsed.text ?? "").replace(/\s+/g, " ").trim();
     if (text.length < 200) {
       throw new Error(
