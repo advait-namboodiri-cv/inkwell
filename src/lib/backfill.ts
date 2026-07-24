@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { getDb } from "./db";
 import { runRmapi } from "./rmapi";
+import { captureVersion } from "./versions";
 
 const pExecFile = promisify(execFile);
 
@@ -82,6 +83,7 @@ async function fetchOne(doc: PendingDoc): Promise<void> {
     const dest = path.join(BUNDLE_DIR, `${doc.id}.rmdoc`);
     fs.copyFileSync(path.join(tmp, produced), dest);
     await harvestPageEvents(doc.id, dest);
+    await captureVersion(doc.id, dest, doc.hash); // time machine snapshot
     getDb()
       .prepare(
         `INSERT INTO bundles (doc_id, hash, fetched_at, error) VALUES (?, ?, ?, '')
