@@ -92,6 +92,17 @@ export function getDb(): Database.Database {
       model      TEXT NOT NULL,
       created_at INTEGER NOT NULL
     );
+    -- per-doc stroke analytics from the rust engine
+    CREATE TABLE IF NOT EXISTS ink_stats (
+      doc_id       TEXT PRIMARY KEY,
+      strokes      INTEGER NOT NULL DEFAULT 0,
+      points       INTEGER NOT NULL DEFAULT 0,
+      distance_mm  REAL NOT NULL DEFAULT 0,
+      pressure_avg REAL NOT NULL DEFAULT 0,  -- 0..1
+      speed_avg    REAL NOT NULL DEFAULT 0,  -- raw device units
+      tools        TEXT NOT NULL DEFAULT '{}',
+      scanned_at   INTEGER NOT NULL
+    );
     -- text highlights parsed from .rm pages by the rust engine
     CREATE TABLE IF NOT EXISTS highlights (
       doc_id  TEXT NOT NULL,
@@ -102,11 +113,16 @@ export function getDb(): Database.Database {
       PRIMARY KEY (doc_id, page_id, ord)
     );
   `);
-  // migration: track which bundle version highlights were scanned from
-  try {
-    db.exec("ALTER TABLE bundles ADD COLUMN hl_hash TEXT NOT NULL DEFAULT ''");
-  } catch {
-    /* column already exists */
+  // migrations: track which bundle version each scan ran against
+  for (const sql of [
+    "ALTER TABLE bundles ADD COLUMN hl_hash TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE bundles ADD COLUMN ink_hash TEXT NOT NULL DEFAULT ''",
+  ]) {
+    try {
+      db.exec(sql);
+    } catch {
+      /* column already exists */
+    }
   }
   return db;
 }
