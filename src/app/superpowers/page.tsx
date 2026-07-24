@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Header from "@/components/Header";
 import SummarizeCard from "@/components/SummarizeCard";
+import WorksheetCard from "@/components/WorksheetCard";
+import SketchCard from "@/components/SketchCard";
 
 type Sent = { title: string; site: string; words: number; folder: string };
 
@@ -120,14 +122,8 @@ export default function SuperpowersPage() {
         </div>
 
         <SummarizeCard />
-
-        <div className="bg-card border border-line rounded-2xl px-6 py-5 shadow-soft">
-          <h2 className="text-sm text-graphite mb-2">coming to superpowers</h2>
-          <ul className="text-sm text-faint flex flex-col gap-1.5">
-            <li>· prompt → AI sketch → tablet</li>
-            <li>· worksheet generation</li>
-          </ul>
-        </div>
+        <WorksheetCard />
+        <SketchCard />
       </section>
     </main>
   );
