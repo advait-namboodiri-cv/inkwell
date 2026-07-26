@@ -43,25 +43,45 @@ body {
   color: var(--ink);
 }
 
-/* ambient backdrop glyphs: appear, drift, disappear. whisper-quiet. */
-.backdrop-glyph {
+/* ambient backdrop glyphs: appear, drift, disappear. present but polite. */
+.backdrop-glyph,
+.backdrop-glyph-sway {
   opacity: 0;
-  animation-name: glyph-drift;
   animation-timing-function: ease-in-out;
   animation-iteration-count: infinite;
+}
+.backdrop-glyph {
+  animation-name: glyph-drift;
+}
+.backdrop-glyph-sway {
+  animation-name: glyph-sway;
 }
 @keyframes glyph-drift {
   0%,
   100% {
     opacity: 0;
-    transform: translateY(14px) rotate(-3deg);
+    transform: translateY(22px) rotate(-5deg) scale(0.9);
   }
-  25%,
-  70% {
-    opacity: 0.05;
+  18%,
+  74% {
+    opacity: 0.13;
   }
   50% {
-    transform: translateY(-16px) rotate(3deg);
+    transform: translateY(-24px) rotate(5deg) scale(1);
+  }
+}
+@keyframes glyph-sway {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translateX(-20px) translateY(12px) rotate(4deg) scale(0.92);
+  }
+  20%,
+  72% {
+    opacity: 0.11;
+  }
+  50% {
+    transform: translateX(18px) translateY(-14px) rotate(-4deg) scale(1);
   }
 }
 
@@ -81,11 +101,13 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .backdrop-glyph,
+  .backdrop-glyph-sway,
   .ink-bob {
     animation: none;
   }
-  .backdrop-glyph {
-    opacity: 0.04;
+  .backdrop-glyph,
+  .backdrop-glyph-sway {
+    opacity: 0.07;
   }
 }
 
