@@ -19,6 +19,7 @@ type Backfill = {
 };
 
 export default function Dashboard({ user }: { user: string }) {
+  const [inkOpen, setInkOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncedAt, setSyncedAt] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -167,7 +168,46 @@ export default function Dashboard({ user }: { user: string }) {
             {shelf && <ShelfCard shelf={shelf} />}
             {hl && <HighlightsCard data={hl} />}
           </div>
-          <InkStats />
+
+          <button
+            onClick={() => setInkOpen((v) => !v)}
+            aria-expanded={inkOpen}
+            className="group w-full text-left bg-card border border-line rounded-2xl px-6 py-5 shadow-soft hover:shadow-lift transition-shadow flex items-center gap-4"
+          >
+            <span className="ink-bob text-ink" aria-hidden>
+              <svg width="30" height="30" viewBox="0 0 32 32" fill="none">
+                <path
+                  d="M17.2 6.4 C 13.6 10.2 11.9 13.3 12 15.9 C 12.1 18.2 13.8 19.9 16.1 19.9 C 18.4 19.9 20 18.2 20 15.9 C 20 13.4 19.1 10.1 17.2 6.4 Z"
+                  fill="currentColor"
+                />
+                <path
+                  d="M9.2 24.6 C 13 26.4 19 26.2 23.4 23.4"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </span>
+            <span className="flex-1">
+              <span className="block text-[15px]">ink stats</span>
+              <span className="block text-xs text-faint mt-0.5">
+                kilometers of ink · pen strokes · pressure · your pens
+              </span>
+            </span>
+            <span
+              className={`text-faint transition-transform duration-500 ${inkOpen ? "rotate-180" : ""}`}
+              aria-hidden
+            >
+              ▾
+            </span>
+          </button>
+          <div
+            className={`grid transition-all duration-700 ease-in-out ${
+              inkOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0 -mt-6"
+            }`}
+          >
+            <div className="overflow-hidden">{inkOpen && <InkStats />}</div>
+          </div>
         </>
       )}
     </section>

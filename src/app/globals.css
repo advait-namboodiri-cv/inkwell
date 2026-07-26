@@ -43,6 +43,52 @@ body {
   color: var(--ink);
 }
 
+/* ambient backdrop glyphs: appear, drift, disappear. whisper-quiet. */
+.backdrop-glyph {
+  opacity: 0;
+  animation-name: glyph-drift;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+@keyframes glyph-drift {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translateY(14px) rotate(-3deg);
+  }
+  25%,
+  70% {
+    opacity: 0.05;
+  }
+  50% {
+    transform: translateY(-16px) rotate(3deg);
+  }
+}
+
+/* the ink stats button's gently bobbing nib */
+.ink-bob {
+  animation: ink-bob 4.5s ease-in-out infinite;
+}
+@keyframes ink-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .backdrop-glyph,
+  .ink-bob {
+    animation: none;
+  }
+  .backdrop-glyph {
+    opacity: 0.04;
+  }
+}
+
 /* calm page entrance, mirrors flowstate's soft fade */
 .page-fade {
   animation: page-fade 0.5s ease both;
