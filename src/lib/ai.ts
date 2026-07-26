@@ -111,40 +111,54 @@ export async function chat(
   maxTokens = 2048
 ): Promise<AiResult> {
   const { ai } = getSettings();
+  const provider =
+    ai.features[feature as keyof typeof ai.features] ?? ("local" as const);
   const result =
-    ai.provider === "anthropic"
+    provider === "anthropic"
       ? await chatAnthropic(system, user, maxTokens)
       : await chatLocal(system, user, maxTokens);
   recordSpend(feature, result);
   return result;
 }
 
-// settings page "test connection": verifies the active provider is reachable
-export async function verifyAi(): Promise<{ ok: boolean; detail?: string; error?: string }> {
+// settings "test connection": checks both backends so per-feature choices
+// are verified no matter how they're mixed
+export type AiCheck = { ok: boolean; detail?: string; error?: string };
+
+export async function verifyAi(): Promise<{ local: AiCheck; anthropic: AiCheck }> {
   const { ai } = getSettings();
-  try {
-    if (ai.provider === "local") {
+  const local: AiCheck = await (async () => {
+    try {
       const res = await fetch(`${ai.localUrl}/models`, {
         signal: AbortSignal.timeout(8_000),
       });
       if (!res.ok) throw new Error(`server returned ${res.status}`);
-      return { ok: true, detail: `mlx server is up at ${ai.localUrl}` };
+      return { ok: true, detail: `local model up at ${ai.localUrl}` };
+    } catch {
+      return {
+        ok: false,
+        error: `local model unreachable. start it with: mlx_lm.server --model ${ai.localModel} --port 8080`,
+      };
     }
+  })();
+  const anthropic: AiCheck = await (async () => {
     const apiKey = getAnthropicKey();
-    if (!apiKey) return { ok: false, error: "enter an anthropic api key first" };
-    const client = new Anthropic({ apiKey });
-    const model = await client.models.retrieve(ai.anthropicModel);
-    return { ok: true, detail: `connected, ${model.display_name} ready` };
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    const friendly =
-      ai.provider === "local"
-        ? `couldn't reach the local model at ${ai.localUrl}. start it with: mlx_lm.server --model ${ai.localModel} --port 8080`
-        : /401|authentication/i.test(msg)
-          ? "anthropic rejected the key. check it in settings"
-          : `couldn't reach anthropic: ${msg.slice(0, 120)}`;
-    return { ok: false, error: friendly };
-  }
+    if (!apiKey) return { ok: false, error: "no api key saved yet" };
+    try {
+      const client = new Anthropic({ apiKey });
+      const model = await client.models.retrieve(ai.anthropicModel);
+      return { ok: true, detail: `${model.display_name} ready` };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return {
+        ok: false,
+        error: /401|authentication/i.test(msg)
+          ? "anthropic rejected the key"
+          : `couldn't reach anthropic: ${msg.slice(0, 100)}`,
+      };
+    }
+  })();
+  return { local, anthropic };
 }
 
 export function spendTotals(): {

@@ -13,13 +13,22 @@ type Sections = {
   quote: boolean;
 };
 type EmailConfig = { enabled: boolean; to: string; smtpUser: string; hasPassword: boolean };
+type AiProvider = "local" | "anthropic";
+type AiFeature = "summary" | "worksheet" | "sketch";
 type AiConfig = {
-  provider: "local" | "anthropic";
+  features: Record<AiFeature, AiProvider>;
   localUrl: string;
   localModel: string;
   anthropicModel: string;
   hasKey: boolean;
 };
+type AiCheck = { ok: boolean; detail?: string; error?: string };
+
+const AI_FEATURE_LABELS: { key: AiFeature; label: string }[] = [
+  { key: "summary", label: "summaries" },
+  { key: "worksheet", label: "worksheets" },
+  { key: "sketch", label: "sketches" },
+];
 type Spend = { totalCents: number; byFeature: { feature: string; n: number; cents: number }[] };
 type Presets = { bbc: boolean; motorsport: boolean; nyt: boolean };
 type BriefConfig = {
@@ -75,7 +84,7 @@ export default function SettingsPage() {
   const [anthropicKey, setAnthropicKey] = useState("");
   const [aiSaved, setAiSaved] = useState(false);
   const [aiTesting, setAiTesting] = useState(false);
-  const [aiTest, setAiTest] = useState<{ ok: boolean; detail?: string; error?: string } | null>(null);
+  const [aiTest, setAiTest] = useState<{ local: AiCheck; anthropic: AiCheck } | null>(null);
   const [spend, setSpend] = useState<Spend | null>(null);
 
   async function saveAi(patch: Partial<AiConfig> & { anthropicKey?: string }) {
@@ -463,88 +472,93 @@ export default function SettingsPage() {
             <p className="text-faint text-sm">loading…</p>
           ) : (
             <>
-              <div className="flex flex-wrap gap-2">
-                {(
-                  [
-                    { key: "local", label: "local model", hint: "free · private" },
-                    { key: "anthropic", label: "Claude API", hint: "costs cents" },
-                  ] as const
-                ).map((p) => (
-                  <button
-                    key={p.key}
-                    onClick={() => saveAi({ provider: p.key })}
-                    className={`text-sm rounded-full px-4 py-1.5 border transition-colors ${
-                      ai.provider === p.key
-                        ? "bg-accent-mist border-accent text-accent-deep"
-                        : "border-line text-graphite hover:border-faint"
-                    }`}
-                  >
-                    {p.label}
-                    <span className="text-[10px] ml-1.5 opacity-70">{p.hint}</span>
-                  </button>
+              <div className="flex flex-col gap-2">
+                <span className="text-xs text-faint">
+                  each superpower picks its own brain · local is free and private
+                </span>
+                {AI_FEATURE_LABELS.map((f) => (
+                  <div key={f.key} className="flex items-center justify-between gap-3">
+                    <span className="text-[15px]">{f.label}</span>
+                    <div className="flex gap-1.5">
+                      {(
+                        [
+                          { key: "local", label: "local · free" },
+                          { key: "anthropic", label: "claude api" },
+                        ] as const
+                      ).map((p) => (
+                        <button
+                          key={p.key}
+                          onClick={() =>
+                            saveAi({ features: { ...ai.features, [f.key]: p.key } })
+                          }
+                          className={`text-xs rounded-full px-3 py-1.5 border transition-colors ${
+                            ai.features[f.key] === p.key
+                              ? "bg-accent-mist border-accent text-accent-deep"
+                              : "border-line text-graphite hover:border-faint"
+                          }`}
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
-              {ai.provider === "local" ? (
-                <div className="flex gap-4 flex-wrap">
-                  <label className="flex flex-col gap-1.5 flex-1 min-w-48">
-                    <span className="text-xs text-faint">mlx server url</span>
-                    <input
-                      value={ai.localUrl}
-                      onChange={(e) => setAi({ ...ai, localUrl: e.target.value })}
-                      onBlur={() => saveAi({ localUrl: ai.localUrl })}
-                      className="bg-paper border border-line rounded-xl px-3 py-2 text-sm outline-none focus:border-accent transition-colors"
-                    />
-                  </label>
-                  <label className="flex flex-col gap-1.5 flex-1 min-w-48">
-                    <span className="text-xs text-faint">model</span>
-                    <input
-                      value={ai.localModel}
-                      onChange={(e) => setAi({ ...ai, localModel: e.target.value })}
-                      onBlur={() => saveAi({ localModel: ai.localModel })}
-                      className="bg-paper border border-line rounded-xl px-3 py-2 text-sm outline-none focus:border-accent transition-colors"
-                    />
-                  </label>
-                </div>
-              ) : (
-                <div className="flex gap-4 flex-wrap">
-                  <label className="flex flex-col gap-1.5 flex-1 min-w-48">
-                    <span className="text-xs text-faint">model</span>
-                    <input
-                      value={ai.anthropicModel}
-                      onChange={(e) => setAi({ ...ai, anthropicModel: e.target.value })}
-                      onBlur={() => saveAi({ anthropicModel: ai.anthropicModel })}
-                      className="bg-paper border border-line rounded-xl px-3 py-2 text-sm outline-none focus:border-accent transition-colors"
-                    />
-                  </label>
-                  <label className="flex flex-col gap-1.5 flex-1 min-w-48">
-                    <span className="text-xs text-faint">
-                      api key{ai.hasKey ? " (saved ✓, enter to replace)" : ""}
-                    </span>
-                    <input
-                      type="password"
-                      value={anthropicKey}
-                      onChange={(e) => setAnthropicKey(e.target.value)}
-                      onBlur={() => anthropicKey.trim() && saveAi({ anthropicKey })}
-                      placeholder={ai.hasKey ? "••••••••" : "sk-ant-..."}
-                      className="bg-paper border border-line rounded-xl px-3 py-2 text-sm outline-none focus:border-accent transition-colors placeholder:text-faint"
-                    />
-                  </label>
-                </div>
-              )}
+              <div className="flex gap-4 flex-wrap">
+                <label className="flex flex-col gap-1.5 flex-1 min-w-48">
+                  <span className="text-xs text-faint">local model</span>
+                  <input
+                    value={ai.localModel}
+                    onChange={(e) => setAi({ ...ai, localModel: e.target.value })}
+                    onBlur={() => saveAi({ localModel: ai.localModel })}
+                    className="bg-paper border border-line rounded-xl px-3 py-2 text-sm outline-none focus:border-accent transition-colors"
+                  />
+                </label>
+                <label className="flex flex-col gap-1.5 flex-1 min-w-48">
+                  <span className="text-xs text-faint">claude model</span>
+                  <input
+                    value={ai.anthropicModel}
+                    onChange={(e) => setAi({ ...ai, anthropicModel: e.target.value })}
+                    onBlur={() => saveAi({ anthropicModel: ai.anthropicModel })}
+                    className="bg-paper border border-line rounded-xl px-3 py-2 text-sm outline-none focus:border-accent transition-colors"
+                  />
+                </label>
+                <label className="flex flex-col gap-1.5 flex-1 min-w-48">
+                  <span className="text-xs text-faint">
+                    api key{ai.hasKey ? " (saved ✓, enter to replace)" : ""}
+                  </span>
+                  <input
+                    type="password"
+                    value={anthropicKey}
+                    onChange={(e) => setAnthropicKey(e.target.value)}
+                    onBlur={() => anthropicKey.trim() && saveAi({ anthropicKey })}
+                    placeholder={ai.hasKey ? "••••••••" : "sk-ant-..."}
+                    className="bg-paper border border-line rounded-xl px-3 py-2 text-sm outline-none focus:border-accent transition-colors placeholder:text-faint"
+                  />
+                </label>
+              </div>
               <div className="flex items-center gap-3 flex-wrap">
                 <button
                   onClick={testAi}
                   disabled={aiTesting}
                   className="text-sm border border-line rounded-full px-4 py-1.5 text-graphite hover:border-accent hover:text-accent-deep transition-colors disabled:opacity-40"
                 >
-                  {aiTesting ? "checking…" : "test connection"}
+                  {aiTesting ? "checking…" : "test connections"}
                 </button>
-                {aiTest &&
-                  (aiTest.ok ? (
-                    <span className="text-sm text-accent-deep">{aiTest.detail} ✓</span>
-                  ) : (
-                    <span className="text-sm text-danger">{aiTest.error}</span>
-                  ))}
+                {aiTest && (
+                  <span className="text-sm flex flex-col gap-0.5">
+                    <span className={aiTest.local.ok ? "text-accent-deep" : "text-danger"}>
+                      {aiTest.local.ok ? `${aiTest.local.detail} ✓` : aiTest.local.error}
+                    </span>
+                    <span
+                      className={aiTest.anthropic.ok ? "text-accent-deep" : "text-faint"}
+                    >
+                      {aiTest.anthropic.ok
+                        ? `${aiTest.anthropic.detail} ✓`
+                        : `claude api: ${aiTest.anthropic.error}`}
+                    </span>
+                  </span>
+                )}
               </div>
               {spend && (
                 <p className="text-xs text-faint leading-relaxed">

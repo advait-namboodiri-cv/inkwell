@@ -45,12 +45,13 @@ export type EmailConfig = {
   hasPassword: boolean;
 };
 
-// AI config: local MLX server (free, private) or the Anthropic API.
-// The Anthropic key is entered in settings, stored only in the local db,
-// and never returned to the browser (hasKey mirrors the email pattern).
+// AI config: each superpower picks its own provider, local MLX (free,
+// private) by default, or the Anthropic API. The Anthropic key is entered in
+// settings, stored only in the local db, and never returned to the browser.
 export type AiProvider = "local" | "anthropic";
+export type AiFeature = "summary" | "worksheet" | "sketch";
 export type AiConfig = {
-  provider: AiProvider;
+  features: Record<AiFeature, AiProvider>;
   localUrl: string; // OpenAI-compatible base url of the mlx server
   localModel: string;
   anthropicModel: string;
@@ -65,12 +66,33 @@ export type Settings = {
 };
 
 const DEFAULT_AI: AiConfig = {
-  provider: "local",
+  features: { summary: "local", worksheet: "local", sketch: "local" },
   localUrl: "http://localhost:8080/v1",
   localModel: "mlx-community/Qwen2.5-14B-Instruct-4bit",
   anthropicModel: "claude-opus-4-8",
   hasKey: false,
 };
+
+function readAiFeatures(): Record<AiFeature, AiProvider> {
+  const out = { ...DEFAULT_AI.features };
+  const raw = getSyncState("ai_features");
+  if (raw) {
+    try {
+      const p = JSON.parse(raw) as Partial<Record<AiFeature, AiProvider>>;
+      for (const k of ["summary", "worksheet", "sketch"] as const) {
+        if (p[k] === "local" || p[k] === "anthropic") out[k] = p[k];
+      }
+      return out;
+    } catch {
+      /* fall through to legacy */
+    }
+  }
+  // legacy single-provider setting seeds all three
+  if (getSyncState("ai_provider") === "anthropic") {
+    out.summary = out.worksheet = out.sketch = "anthropic";
+  }
+  return out;
+}
 
 const DEFAULT_BRIEF: BriefConfig = {
   sections: {
@@ -122,7 +144,7 @@ export function getSettings(): Settings {
     hasPassword: Boolean(getSyncState("smtp_pass")),
   };
   const ai: AiConfig = {
-    provider: getSyncState("ai_provider") === "anthropic" ? "anthropic" : "local",
+    features: readAiFeatures(),
     localUrl: getSyncState("ai_local_url") || DEFAULT_AI.localUrl,
     localModel: getSyncState("ai_local_model") || DEFAULT_AI.localModel,
     anthropicModel: getSyncState("ai_anthropic_model") || DEFAULT_AI.anthropicModel,
@@ -179,8 +201,14 @@ export function updateSettings(patch: Partial<Settings>): Settings {
   }
   if (patch.ai) {
     const a = patch.ai as Partial<AiConfig> & { anthropicKey?: string };
-    if (a.provider === "local" || a.provider === "anthropic") {
-      setSyncState("ai_provider", a.provider);
+    if (a.features && typeof a.features === "object") {
+      const merged = readAiFeatures();
+      for (const k of ["summary", "worksheet", "sketch"] as const) {
+        if (a.features[k] === "local" || a.features[k] === "anthropic") {
+          merged[k] = a.features[k];
+        }
+      }
+      setSyncState("ai_features", JSON.stringify(merged));
     }
     if (typeof a.localUrl === "string" && a.localUrl.trim()) {
       setSyncState("ai_local_url", a.localUrl.trim().replace(/\/$/, ""));
