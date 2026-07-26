@@ -5,6 +5,7 @@ import Header from "@/components/Header";
 import SummarizeCard from "@/components/SummarizeCard";
 import WorksheetCard from "@/components/WorksheetCard";
 import SketchCard from "@/components/SketchCard";
+import TodosCard from "@/components/TodosCard";
 
 type Sent = { title: string; site: string; words: number; folder: string };
 
@@ -118,6 +119,7 @@ export default function SuperpowersPage() {
           )}
         </div>
 
+        <TodosCard />
         <SummarizeCard />
         <WorksheetCard />
         <SketchCard />

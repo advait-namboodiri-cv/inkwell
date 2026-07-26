@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Header from "@/components/Header";
 
 type Report = {
   totals: { strokes: number; points: number; mm: number; pressure: number; docs: number };
@@ -16,7 +15,7 @@ function distanceLabel(mm: number): string {
   return `${Math.round(mm)} mm`;
 }
 
-export default function InkPage() {
+export default function InkStats() {
   const [report, setReport] = useState<Report | null>(null);
 
   useEffect(() => {
@@ -42,9 +41,7 @@ export default function InkPage() {
   const maxTool = report?.tools[0]?.n ?? 1;
 
   return (
-    <main className="page-fade flex-1 flex flex-col items-center px-6 py-16">
-      <Header />
-      <section className="w-full max-w-4xl flex flex-col gap-6">
+    <section className="w-full flex flex-col gap-6">
         {!report ? (
           <p className="text-faint text-center py-8">measuring your ink…</p>
         ) : (
@@ -167,7 +164,6 @@ export default function InkPage() {
             </details>
           </>
         )}
-      </section>
-    </main>
+    </section>
   );
 }

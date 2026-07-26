@@ -5,6 +5,7 @@ import CensusCard, { type Census } from "./CensusCard";
 import ShelfCard, { type ShelfItem } from "./ShelfCard";
 import HeatmapCard, { type HeatData } from "./HeatmapCard";
 import HighlightsCard, { type HighlightsData } from "./HighlightsCard";
+import InkStats from "./InkStats";
 import { timeAgo } from "@/lib/format";
 
 const STALE_MS = 5 * 60 * 1000; // auto-sync if older than this; also the poll cadence
@@ -166,6 +167,7 @@ export default function Dashboard({ user }: { user: string }) {
             {shelf && <ShelfCard shelf={shelf} />}
             {hl && <HighlightsCard data={hl} />}
           </div>
+          <InkStats />
         </>
       )}
     </section>

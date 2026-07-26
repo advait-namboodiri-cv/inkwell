@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Header from "@/components/Header";
 
 type Todo = { id: number; text: string; done: number; created_at: number };
 
-export default function TodosPage() {
+export default function TodosCard() {
   const [todos, setTodos] = useState<Todo[] | null>(null);
   const [text, setText] = useState("");
 
@@ -45,9 +44,6 @@ export default function TodosPage() {
   }
 
   return (
-    <main className="page-fade flex-1 flex flex-col items-center px-6 py-16">
-      <Header />
-      <section className="w-full max-w-3xl flex flex-col gap-6">
         <form
           onSubmit={add}
           className="bg-card border border-line rounded-2xl px-6 py-5 shadow-soft flex flex-col gap-3"
@@ -106,7 +102,5 @@ export default function TodosPage() {
             </ul>
           )}
         </form>
-      </section>
-    </main>
   );
 }
