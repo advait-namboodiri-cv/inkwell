@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Lexend } from "next/font/google";
 import Backdrop from "@/components/Backdrop";
+import Signature from "@/components/Signature";
 import "./globals.css";
 
 const lexend = Lexend({
@@ -23,6 +24,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col font-sans">
         <Backdrop />
         {children}
+        <Signature />
       </body>
     </html>
   );
