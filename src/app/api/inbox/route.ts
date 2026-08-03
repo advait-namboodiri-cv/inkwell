@@ -3,6 +3,7 @@ import { isPaired } from "@/lib/rmapi";
 import { fetchArticle } from "@/lib/article";
 import { articlePdf } from "@/lib/typeset";
 import { deliverPdf } from "@/lib/deliver";
+import { assertPublicUrl } from "@/lib/safe";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -27,13 +28,12 @@ export async function POST(req: Request) {
   const raw = typeof body.url === "string" ? body.url.trim() : "";
   let url: URL;
   try {
-    url = new URL(raw.includes("://") ? raw : `https://${raw}`);
-    if (!["http:", "https:"].includes(url.protocol)) throw new Error();
-  } catch {
-    return NextResponse.json(
-      { error: "that doesn't look like a link" },
-      { status: 400, headers: CORS }
-    );
+    url = assertPublicUrl(raw);
+  } catch (err) {
+    const msg = err instanceof Error && /local network/.test(err.message)
+      ? err.message
+      : "that doesn't look like a link";
+    return NextResponse.json({ error: msg }, { status: 400, headers: CORS });
   }
   try {
     const article = await fetchArticle(url.href);

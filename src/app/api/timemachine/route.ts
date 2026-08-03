@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { activity, timeline } from "@/lib/versions";
 import { getDb } from "@/lib/db";
+import { isSafeId } from "@/lib/safe";
 
 export const runtime = "nodejs";
 
 export async function GET(req: NextRequest) {
   const docId = req.nextUrl.searchParams.get("docId") ?? "";
-  if (!docId) return NextResponse.json({ error: "docId required" }, { status: 400 });
+  if (!isSafeId(docId)) return NextResponse.json({ error: "invalid docId" }, { status: 400 });
   const doc = getDb()
     .prepare("SELECT name, path FROM documents WHERE id = ?")
     .get(docId) as { name: string; path: string } | undefined;

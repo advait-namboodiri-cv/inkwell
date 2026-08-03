@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { summarize } from "@/lib/summary";
+import { isSafeId } from "@/lib/safe";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
-  if (typeof body.docId !== "string" || !body.docId) {
+  if (!isSafeId(body.docId)) {
     return NextResponse.json({ error: "docId required" }, { status: 400 });
   }
   try {

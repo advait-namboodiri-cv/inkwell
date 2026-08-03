@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { isPaired } from "@/lib/rmapi";
 import { restoreAsPdf } from "@/lib/timeday";
+import { isSafeId } from "@/lib/safe";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -9,7 +10,7 @@ export async function POST(req: Request) {
   if (!isPaired()) return NextResponse.json({ error: "not paired" }, { status: 401 });
   const body = await req.json().catch(() => ({}));
   const { docId, hash, dayLabel } = body ?? {};
-  if (typeof docId !== "string" || typeof hash !== "string" || typeof dayLabel !== "string") {
+  if (!isSafeId(docId) || !isSafeId(hash) || typeof dayLabel !== "string") {
     return NextResponse.json({ error: "docId, hash and dayLabel required" }, { status: 400 });
   }
   try {
