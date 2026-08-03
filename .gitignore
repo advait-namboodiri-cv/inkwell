@@ -44,3 +44,4 @@ next-env.d.ts
 /data/
 engine-fixtures/
 engine/target/
+xcuserdata/
