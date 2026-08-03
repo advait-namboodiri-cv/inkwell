@@ -12,7 +12,8 @@ let lastSpawnAt = 0;
 
 export async function ensureMlx(): Promise<void> {
   const { ai } = getSettings();
-  if (ai.provider !== "local") return;
+  // only start the local server if some superpower actually uses it
+  if (!Object.values(ai.features).includes("local")) return;
   try {
     const res = await fetch(`${ai.localUrl}/models`, {
       signal: AbortSignal.timeout(2_000),
