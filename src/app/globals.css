@@ -111,6 +111,16 @@ body {
   }
 }
 
+/* the tab bar scrolls sideways on narrow phones instead of overflowing;
+   the scrollbar itself stays hidden so the pill still reads as one calm strip */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* calm page entrance, mirrors flowstate's soft fade */
 .page-fade {
   animation: page-fade 0.5s ease both;
