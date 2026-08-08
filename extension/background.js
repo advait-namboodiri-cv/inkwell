@@ -13,7 +13,7 @@ chrome.contextMenus.onClicked.addListener(async (info) => {
   try {
     const res = await fetch(`${INKWELL}/api/inbox`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-inkwell-extension": "1" },
       body: JSON.stringify({ url: info.linkUrl }),
     });
     badge(res.ok ? "✓" : "!");

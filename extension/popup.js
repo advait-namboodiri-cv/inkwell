@@ -25,7 +25,7 @@ sendEl.addEventListener("click", async () => {
   try {
     const res = await fetch(`${INKWELL}/api/inbox`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-inkwell-extension": "1" },
       body: JSON.stringify({ url: pageUrl }),
     });
     const data = await res.json();
