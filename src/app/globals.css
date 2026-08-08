@@ -64,7 +64,7 @@ body {
   }
   18%,
   74% {
-    opacity: 0.13;
+    opacity: 0.16;
   }
   50% {
     transform: translateY(-24px) rotate(5deg) scale(1);
@@ -78,7 +78,7 @@ body {
   }
   20%,
   72% {
-    opacity: 0.11;
+    opacity: 0.14;
   }
   50% {
     transform: translateX(18px) translateY(-14px) rotate(-4deg) scale(1);
