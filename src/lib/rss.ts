@@ -1,4 +1,5 @@
 import { JSDOM } from "jsdom";
+import { safeFetch } from "./safe";
 
 // Minimal RSS/Atom fetcher — jsdom parses the XML, no extra dependency.
 export type NewsItem = {
@@ -21,7 +22,7 @@ function stripHtml(s: string): string {
 }
 
 export async function fetchFeed(url: string): Promise<NewsItem[]> {
-  const res = await fetch(url, {
+  const res = await safeFetch(url, {
     headers: { "User-Agent": "Mozilla/5.0 (inkwell brief)" },
     signal: AbortSignal.timeout(15_000),
   });

@@ -45,16 +45,41 @@ export function assertPublicUrl(raw: string): URL {
     throw new Error("only http and https links are supported");
   }
   const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  // an ipv6 literal always contains colons; a domain never does. only apply
+  // the ipv6 private-range prefixes to literals, else real sites that happen
+  // to start with those letters (fdic.gov, fc2.com) get wrongly blocked.
+  const isIpv6 = host.includes(":");
   if (
     BLOCKED_HOSTNAMES.has(host) ||
     host.endsWith(".local") ||
     host.endsWith(".internal") ||
     isPrivateIpv4(host) ||
-    host.startsWith("fe80:") ||
-    host.startsWith("fc") ||
-    host.startsWith("fd")
+    (isIpv6 &&
+      (host.startsWith("fe80:") || host.startsWith("fc") || host.startsWith("fd")))
   ) {
     throw new Error("that address is on your local network, not the web");
   }
   return url;
+}
+
+// fetch that re-checks every redirect hop, so a public URL can't bounce the
+// server to a private address (metadata endpoints, LAN devices). Same
+// signature as fetch, but the first argument must pass assertPublicUrl.
+export async function safeFetch(
+  rawUrl: string,
+  init: RequestInit = {},
+  maxRedirects = 5
+): Promise<Response> {
+  let current = assertPublicUrl(rawUrl).href;
+  for (let hop = 0; hop <= maxRedirects; hop++) {
+    const res = await fetch(current, { ...init, redirect: "manual" });
+    if (res.status >= 300 && res.status < 400) {
+      const location = res.headers.get("location");
+      if (!location) return res;
+      current = assertPublicUrl(new URL(location, current).href).href;
+      continue;
+    }
+    return res;
+  }
+  throw new Error("too many redirects");
 }

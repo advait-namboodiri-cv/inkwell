@@ -1,5 +1,6 @@
 import { Readability } from "@mozilla/readability";
 import { JSDOM } from "jsdom";
+import { safeFetch } from "./safe";
 
 // Fetches a web page and strips it to clean reader-mode content
 // using Firefox's Readability engine.
@@ -25,7 +26,7 @@ const BLOCK_TAGS: Record<string, ArticleBlock["kind"]> = {
 };
 
 export async function fetchArticle(url: string): Promise<Article> {
-  const res = await fetch(url, {
+  const res = await safeFetch(url, {
     headers: { "User-Agent": "Mozilla/5.0 (inkwell reader)" },
     signal: AbortSignal.timeout(30_000),
   });
