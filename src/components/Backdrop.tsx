@@ -78,44 +78,25 @@ const BOOK = (
 
 const GLYPHS = [NIB, INKWELL_POT, PAPER, QUILL, DROP, PENCIL, BOOK];
 
-// deterministic placements so server and client render identically.
-// durations are short and delays tightly staggered so many glyphs share the
-// stage at once — pens especially (nib 0, quill 3, pencil 5) — appearing and
-// disappearing continuously enough to notice, never so fast it feels busy.
+// deterministic placements so server and client render identically. a small,
+// well-spread set — pens favoured (nib 0, quill 3, pencil 5) — kept toward the
+// edges so the middle stays clear. staggered delays keep the appear-and-
+// disappear motion going with only a few on screen at any moment.
 const SPOTS: { top: string; left: string; size: number; dur: number; delay: number; glyph: number; sway?: boolean }[] = [
-  { top: "8%", left: "5%", size: 52, dur: 14, delay: 0, glyph: 0 },
-  { top: "16%", left: "88%", size: 56, dur: 16, delay: 1.5, glyph: 2, sway: true },
-  { top: "30%", left: "12%", size: 44, dur: 13, delay: 3, glyph: 3 },
-  { top: "6%", left: "38%", size: 42, dur: 17, delay: 4.5, glyph: 5, sway: true },
-  { top: "12%", left: "64%", size: 46, dur: 15, delay: 6, glyph: 0 },
-  { top: "40%", left: "92%", size: 50, dur: 16, delay: 2.5, glyph: 1 },
-  { top: "50%", left: "4%", size: 58, dur: 18, delay: 7.5, glyph: 3, sway: true },
-  { top: "62%", left: "90%", size: 44, dur: 14, delay: 9, glyph: 0 },
-  { top: "72%", left: "8%", size: 48, dur: 15, delay: 0.8, glyph: 5, sway: true },
-  { top: "84%", left: "86%", size: 54, dur: 17, delay: 5, glyph: 5 },
-  { top: "90%", left: "30%", size: 46, dur: 13, delay: 8, glyph: 1, sway: true },
-  { top: "86%", left: "58%", size: 42, dur: 15, delay: 2, glyph: 3 },
-  { top: "68%", left: "45%", size: 40, dur: 19, delay: 11, glyph: 0 },
-  { top: "34%", left: "70%", size: 38, dur: 14, delay: 5.5, glyph: 3, sway: true },
-  { top: "55%", left: "25%", size: 40, dur: 16, delay: 10, glyph: 5 },
-  { top: "22%", left: "45%", size: 36, dur: 15, delay: 12.5, glyph: 4, sway: true },
-  { top: "44%", left: "55%", size: 38, dur: 18, delay: 13, glyph: 0 },
-  { top: "78%", left: "72%", size: 44, dur: 15, delay: 14, glyph: 5 },
-  // second wave — fills the gaps and keeps pens on screen almost always
-  { top: "4%", left: "20%", size: 38, dur: 16, delay: 9.5, glyph: 5, sway: true },
-  { top: "10%", left: "78%", size: 40, dur: 14, delay: 3.8, glyph: 3 },
-  { top: "26%", left: "30%", size: 34, dur: 17, delay: 15, glyph: 0, sway: true },
-  { top: "24%", left: "58%", size: 42, dur: 15, delay: 6.8, glyph: 6 },
-  { top: "38%", left: "84%", size: 36, dur: 16, delay: 11.5, glyph: 5, sway: true },
-  { top: "46%", left: "16%", size: 44, dur: 18, delay: 4.2, glyph: 0 },
-  { top: "58%", left: "62%", size: 38, dur: 14, delay: 8.5, glyph: 3, sway: true },
-  { top: "60%", left: "36%", size: 34, dur: 17, delay: 13.8, glyph: 5 },
-  { top: "74%", left: "22%", size: 40, dur: 15, delay: 1.2, glyph: 3, sway: true },
-  { top: "76%", left: "52%", size: 36, dur: 16, delay: 10.5, glyph: 0 },
-  { top: "88%", left: "70%", size: 42, dur: 14, delay: 7, glyph: 3, sway: true },
-  { top: "92%", left: "44%", size: 38, dur: 18, delay: 12, glyph: 5 },
-  { top: "18%", left: "6%", size: 34, dur: 15, delay: 16, glyph: 3, sway: true },
-  { top: "52%", left: "78%", size: 40, dur: 16, delay: 2.8, glyph: 0 },
+  { top: "8%", left: "5%", size: 52, dur: 16, delay: 0, glyph: 0 },
+  { top: "16%", left: "88%", size: 54, dur: 18, delay: 3, glyph: 2, sway: true },
+  { top: "6%", left: "40%", size: 42, dur: 20, delay: 8, glyph: 5, sway: true },
+  { top: "12%", left: "66%", size: 46, dur: 17, delay: 12, glyph: 3 },
+  { top: "40%", left: "92%", size: 50, dur: 19, delay: 5, glyph: 1 },
+  { top: "50%", left: "4%", size: 56, dur: 21, delay: 10, glyph: 3, sway: true },
+  { top: "64%", left: "90%", size: 44, dur: 16, delay: 14, glyph: 0 },
+  { top: "72%", left: "7%", size: 48, dur: 18, delay: 2, glyph: 5, sway: true },
+  { top: "84%", left: "86%", size: 52, dur: 20, delay: 7, glyph: 5 },
+  { top: "90%", left: "32%", size: 44, dur: 15, delay: 11, glyph: 1, sway: true },
+  { top: "86%", left: "58%", size: 42, dur: 17, delay: 4, glyph: 3 },
+  { top: "30%", left: "12%", size: 40, dur: 22, delay: 15, glyph: 0 },
+  { top: "34%", left: "72%", size: 38, dur: 16, delay: 9, glyph: 5, sway: true },
+  { top: "60%", left: "22%", size: 40, dur: 19, delay: 6, glyph: 3 },
 ];
 
 export default function Backdrop() {
