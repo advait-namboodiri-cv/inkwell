@@ -45,3 +45,7 @@ next-env.d.ts
 engine-fixtures/
 engine/target/
 xcuserdata/
+
+# stray local files
+.Rhistory
+WALKTHROUGH.html
