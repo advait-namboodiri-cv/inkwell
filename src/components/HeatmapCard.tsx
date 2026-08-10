@@ -1,5 +1,7 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+
 export type HeatData = {
   days: { day: string; pages: number }[];
   totals: { events: number; docs: number };
@@ -29,6 +31,7 @@ const WEEKS = 53;
 const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
 
 export default function HeatmapCard({ data }: { data: HeatData }) {
+  const router = useRouter();
   const byDay = new Map(data.days.map((d) => [d.day, d.pages]));
 
   // grid ends on today's week (Monday-aligned), spans 53 weeks back
@@ -87,6 +90,8 @@ export default function HeatmapCard({ data }: { data: HeatData }) {
         {cells.map(
           (c) =>
             !c.future && (
+              // an inked day is a doorway: click it and the time machine opens
+              // on that date. empty days stay quiet.
               <rect
                 key={c.day}
                 x={c.x}
@@ -95,9 +100,16 @@ export default function HeatmapCard({ data }: { data: HeatData }) {
                 height={CELL}
                 rx={3}
                 fill={shade(c.pages)}
+                onClick={c.pages > 0 ? () => router.push(`/timemachine?day=${c.day}`) : undefined}
+                className={
+                  c.pages > 0
+                    ? "cursor-pointer transition-opacity hover:opacity-70"
+                    : undefined
+                }
               >
                 <title>
                   {c.day} · {c.pages} page{c.pages === 1 ? "" : "s"}
+                  {c.pages > 0 ? " · open in time machine" : ""}
                 </title>
               </rect>
             )

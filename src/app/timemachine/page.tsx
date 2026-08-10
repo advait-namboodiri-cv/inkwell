@@ -38,6 +38,9 @@ export default function TimeMachinePage() {
       const res = await fetch(`/api/days?tz=${tz}`);
       if (res.ok) setDays((await res.json()).days);
     })();
+    // arriving from a heatmap dot: ?day=YYYY-MM-DD opens that day right away
+    const day = new URLSearchParams(window.location.search).get("day");
+    if (day && /^\d{4}-\d{2}-\d{2}$/.test(day)) void openDay(day);
   }, []);
 
   async function openDay(day: string) {
