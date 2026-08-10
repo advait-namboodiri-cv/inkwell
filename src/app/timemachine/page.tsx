@@ -1,7 +1,93 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Header from "@/components/Header";
+
+// fetches the page svg, inlines it, and redraws every stroke in the exact
+// order it was written — rmc emits strokes in drawing order, so document
+// order IS the order your hand moved. pacing scales with total ink length
+// so any page replays in about eight seconds.
+function StrokeReplay({ src, runId, onFail }: { src: string; runId: number; onFail: () => void }) {
+  const holder = useRef<HTMLDivElement>(null);
+
+  const run = useCallback(() => {
+    const root = holder.current?.querySelector("svg");
+    if (!root) return;
+    root.getAnimations({ subtree: true }).forEach((a) => a.cancel());
+    const marks = [...root.querySelectorAll<SVGGeometryElement>("path, polyline, line")];
+    const lens = marks.map((el) => {
+      try {
+        return el.getTotalLength();
+      } catch {
+        return 0;
+      }
+    });
+    const total = lens.reduce((a, b) => a + b, 0) || 1;
+    const speed = Math.max(total / 8, 900); // svg units per second
+    let at = 0;
+    marks.forEach((el, i) => {
+      const len = lens[i];
+      const dur = Math.max((len / speed) * 1000, 30);
+      const stroked = el.getAttribute("stroke") && el.getAttribute("stroke") !== "none";
+      if (stroked && len > 0) {
+        el.style.strokeDasharray = `${len}`;
+        el.style.strokeDashoffset = `${len}`;
+        el.animate([{ strokeDashoffset: len }, { strokeDashoffset: 0 }], {
+          delay: at,
+          duration: dur,
+          easing: "linear",
+          fill: "forwards",
+        });
+      } else {
+        // filled marks (highlighter blocks) fade in at their moment instead
+        el.style.opacity = "0";
+        el.animate([{ opacity: 0 }, { opacity: 1 }], {
+          delay: at,
+          duration: Math.max(dur, 200),
+          easing: "ease-out",
+          fill: "forwards",
+        });
+      }
+      at += dur;
+    });
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const res = await fetch(src);
+        if (!res.ok) throw new Error();
+        const text = await res.text();
+        const svg = new DOMParser()
+          .parseFromString(text, "image/svg+xml")
+          .querySelector("svg");
+        if (!svg) throw new Error();
+        if (!alive || !holder.current) return;
+        svg.querySelectorAll("script").forEach((s) => s.remove());
+        svg.removeAttribute("width");
+        svg.removeAttribute("height");
+        svg.style.width = "100%";
+        svg.style.height = "auto";
+        holder.current.replaceChildren(svg);
+        run();
+      } catch {
+        if (alive) onFail();
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+    // runId re-triggers the whole fetch-and-draw for "replay again"
+  }, [src, runId, run, onFail]);
+
+  return (
+    <div
+      ref={holder}
+      className="w-full border border-line rounded-xl bg-white overflow-hidden"
+    />
+  );
+}
 
 type Day = { day: string; docs: number; pages: number };
 type DayDoc = {
@@ -29,6 +115,8 @@ export default function TimeMachinePage() {
     null
   );
   const [previewFailed, setPreviewFailed] = useState(false);
+  const [replaying, setReplaying] = useState(false);
+  const [replayRun, setReplayRun] = useState(0);
   const [restoring, setRestoring] = useState<string | null>(null);
   const [restored, setRestored] = useState<string | null>(null);
 
@@ -167,6 +255,7 @@ export default function TimeMachinePage() {
                               : "from the snapshot closest to that day",
                           });
                           setPreviewFailed(false);
+                          setReplaying(false);
                         }}
                         className="text-xs border border-line rounded-full px-2.5 py-1 text-graphite hover:border-accent hover:text-accent-deep transition-colors"
                       >
@@ -195,11 +284,29 @@ export default function TimeMachinePage() {
             </div>
 
             <div className="bg-card border border-line rounded-2xl px-6 py-5 shadow-soft md:sticky md:top-6">
-              <h2 className="text-sm text-graphite mb-1">
-                {preview ? preview.label : "page preview"}
-              </h2>
+              <div className="flex items-start justify-between gap-3 mb-1">
+                <h2 className="text-sm text-graphite">
+                  {preview ? preview.label : "page preview"}
+                </h2>
+                {preview && !previewFailed && (
+                  <button
+                    onClick={() => {
+                      setReplaying(true);
+                      setReplayRun((n) => n + 1);
+                    }}
+                    className="shrink-0 flex items-center gap-1.5 text-xs bg-accent text-white rounded-full px-3 py-1.5 hover:bg-accent-deep transition-colors"
+                  >
+                    <svg width="9" height="10" viewBox="0 0 9 10" aria-hidden>
+                      <path d="M1 1 L8 5 L1 9 Z" fill="currentColor" />
+                    </svg>
+                    {replaying ? "replay again" : "replay the strokes"}
+                  </button>
+                )}
+              </div>
               {preview && !previewFailed && (
-                <p className="text-xs text-faint mb-3">{preview.note}</p>
+                <p className="text-xs text-faint mb-3">
+                  {replaying ? "in the exact order your hand drew them" : preview.note}
+                </p>
               )}
               {!preview && <p className="text-sm text-faint mt-2">click a page to see its ink</p>}
               {preview && previewFailed && (
@@ -207,16 +314,24 @@ export default function TimeMachinePage() {
                   nothing to render, this page has no ink strokes
                 </p>
               )}
-              {preview && !previewFailed && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  key={preview.src}
-                  src={preview.src}
-                  alt={preview.label}
-                  onError={() => setPreviewFailed(true)}
-                  className="w-full h-auto border border-line rounded-xl bg-white"
-                />
-              )}
+              {preview &&
+                !previewFailed &&
+                (replaying ? (
+                  <StrokeReplay
+                    src={preview.src}
+                    runId={replayRun}
+                    onFail={() => setPreviewFailed(true)}
+                  />
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={preview.src}
+                    src={preview.src}
+                    alt={preview.label}
+                    onError={() => setPreviewFailed(true)}
+                    className="w-full h-auto border border-line rounded-xl bg-white"
+                  />
+                ))}
             </div>
           </div>
         )}
