@@ -6,7 +6,19 @@ import path from "node:path";
 
 const pExecFile = promisify(execFile);
 
-// renders one .rm page out of a bundle to svg via rmc (python)
+// rmc lives wherever pip put it; the dev server's PATH depends on which
+// terminal launched it, so resolve a known install location first (same
+// pattern as RMAPI_BIN in rmapi.ts) instead of trusting PATH.
+const RMC_KNOWN = [
+  "/opt/homebrew/Caskroom/miniconda/base/bin/rmc",
+  path.join(os.homedir(), ".local", "bin", "rmc"),
+  "/opt/homebrew/bin/rmc",
+];
+const RMC_BIN = process.env.RMC_BIN ?? RMC_KNOWN.find((p) => fs.existsSync(p)) ?? "rmc";
+
+// renders one .rm page out of a bundle to svg via rmc (the python renderer).
+// returns null only when the page genuinely has no ink; a broken renderer
+// throws so the route can say so instead of pretending the page is blank.
 export async function renderPageSvg(
   bundlePath: string,
   pageId: string
@@ -21,10 +33,13 @@ export async function renderPageSvg(
     }).catch(() => ({ stdout: Buffer.alloc(0) }));
     if ((stdout as Buffer).length === 0) return null; // page has no ink
     fs.writeFileSync(rmPath, stdout as Buffer);
-    await pExecFile("rmc", ["-t", "svg", "-o", svgPath, rmPath], { timeout: 30_000 });
+    try {
+      await pExecFile(RMC_BIN, ["-t", "svg", "-o", svgPath, rmPath], { timeout: 30_000 });
+    } catch (err) {
+      console.error(`[inkwell] rmc failed (${RMC_BIN}):`, err);
+      throw new Error("the page renderer (rmc) isn't reachable from this server");
+    }
     return fs.readFileSync(svgPath, "utf8");
-  } catch {
-    return null;
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }

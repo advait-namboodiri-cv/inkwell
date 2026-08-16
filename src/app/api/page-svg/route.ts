@@ -18,7 +18,13 @@ export async function GET(req: NextRequest) {
   if (!fs.existsSync(bundle)) {
     return NextResponse.json({ error: "snapshot not found" }, { status: 404 });
   }
-  const svg = await renderPageSvg(bundle, pageId);
+  let svg: string | null;
+  try {
+    svg = await renderPageSvg(bundle, pageId);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "render failed";
+    return NextResponse.json({ error: msg }, { status: 502 });
+  }
   if (!svg) {
     return NextResponse.json({ error: "no ink on this page" }, { status: 404 });
   }
